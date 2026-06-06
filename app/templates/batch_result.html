@@ -2,6 +2,31 @@
 {% block content %}
 <h1>{{ batch.name }}</h1>
 
+{% if cost_alert %}
+<div class="card" style="border-left:4px solid var(--yellow); padding:14px 16px; margin-bottom:4px;">
+  <div style="color:var(--yellow); font-size:0.85rem; font-weight:700; margin-bottom:6px;">
+    ⚠️ 原価上昇 +{{ cost_alert.diff_pct }}%（前回比）
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:0.82rem; text-align:center;">
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">前回（{{ cost_alert.prev_date }}）</div>
+      <div style="font-weight:700;">¥{{ "{:,.0f}".format(cost_alert.prev_cost_per_kg) }}/kg</div>
+    </div>
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">今回</div>
+      <div style="font-weight:700; color:var(--yellow);">¥{{ "{:,.0f}".format(cost_alert.curr_cost_per_kg) }}/kg</div>
+    </div>
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">差額</div>
+      <div style="font-weight:700; color:var(--accent);">+¥{{ "{:,.0f}".format(cost_alert.diff) }}</div>
+    </div>
+  </div>
+  <div style="color:var(--muted); font-size:0.72rem; margin-top:8px;">
+    💡 販売価格の見直しを検討してください
+  </div>
+</div>
+{% endif %}
+
 <!-- ===== 全コスト込み価格（固定費設定がある場合） ===== -->
 {% if full_price %}
 <div class="card" style="padding:20px; border:2px solid var(--accent);">
@@ -155,6 +180,31 @@
     食材合計: ¥{{ "{:,.0f}".format(batch.total_cost) }}
   </div>
 </div>
+
+{% if batch.waste_weight and batch.waste_weight > 0 %}
+{% set sellable = batch.finished_weight - batch.waste_weight %}
+{% set actual_cost_per_kg = (batch.total_cost / sellable) | round | int if sellable > 0 else 0 %}
+<div class="card" style="border-left:4px solid var(--yellow); padding:14px 16px;">
+  <div style="color:var(--yellow); font-size:0.85rem; font-weight:700; margin-bottom:8px;">🗑 廃棄ロス補正</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; text-align:center; font-size:0.82rem;">
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">廃棄量</div>
+      <div style="font-weight:700; color:var(--yellow);">{{ batch.waste_weight }}kg</div>
+    </div>
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">実販売量</div>
+      <div style="font-weight:700;">{{ "%.2f" | format(sellable) }}kg</div>
+    </div>
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">実原価/kg</div>
+      <div style="font-weight:700; color:var(--accent);">¥{{ "{:,.0f}".format(actual_cost_per_kg) }}</div>
+    </div>
+  </div>
+  <div style="color:var(--muted); font-size:0.72rem; margin-top:8px;">
+    ※ 廃棄ロスを考慮した実際の原価/kg（販売価格設定の参考に）
+  </div>
+</div>
+{% endif %}
 
 {% if batch.notes %}
 <div class="card" style="color:var(--muted); font-size:0.85rem;">📝 {{ batch.notes }}</div>

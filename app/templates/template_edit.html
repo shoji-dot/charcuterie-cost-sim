@@ -17,6 +17,45 @@
   </div>
   {% endif %}
 
+  <!-- デフォルト粗利設定 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:10px;">デフォルト粗利設定</label>
+    {% set cur_tier = tmpl.default_customer_tier if tmpl and tmpl.default_customer_tier else 'standard' %}
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      <label style="cursor:pointer;">
+        <input type="radio" name="default_customer_tier" value="premium" style="display:none;" id="dt_p"
+          {% if cur_tier == 'premium' %}checked{% endif %}>
+        <div class="dtier-btn" data-for="dt_p"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'premium' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'premium' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          📈 高粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利75%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="default_customer_tier" value="standard" style="display:none;" id="dt_s"
+          {% if cur_tier == 'standard' %}checked{% endif %}>
+        <div class="dtier-btn" data-for="dt_s"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'standard' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'standard' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          📊 標準粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利65%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="default_customer_tier" value="custom" style="display:none;" id="dt_c"
+          {% if cur_tier == 'custom' %}checked{% endif %}>
+        <div class="dtier-btn" data-for="dt_c"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'custom' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'custom' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          ✏️ カスタム<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">任意%</span>
+        </div>
+      </label>
+    </div>
+    <div id="defCustomBlock" style="display:{% if cur_tier == 'custom' %}block{% else %}none{% endif %}; margin-top:10px;">
+      <label style="color:var(--muted); font-size:0.78rem; display:block; margin-bottom:4px;">目標粗利率 (%)</label>
+      <input type="number" name="default_gross_margin" id="defGmInput"
+        value="{{ tmpl.default_gross_margin | int if tmpl and tmpl.default_gross_margin else '' }}"
+        min="1" max="99" step="1" placeholder="例: 70"
+        style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.6rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+    </div>
+  </div>
+
   <div class="card">
     <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">レシピメモ（季節アレンジなど）</label>
     <textarea name="notes" rows="2" placeholder="例: 夏は旬野菜を追加"
@@ -73,6 +112,21 @@
 <a href="/batch" class="btn btn-ghost">← もどる</a>
 
 <script>
+// デフォルト粗利ボタン切替
+document.querySelectorAll('input[name="default_customer_tier"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('.dtier-btn').forEach(b => {
+      b.style.border = '2px solid #333'; b.style.background = 'transparent';
+    });
+    const s = document.querySelector(`.dtier-btn[data-for="${r.id}"]`);
+    s.style.border = '2px solid var(--accent)'; s.style.background = 'rgba(233,69,96,0.15)';
+    const block = document.getElementById('defCustomBlock');
+    const inp = document.getElementById('defGmInput');
+    if (r.value === 'custom') { block.style.display = 'block'; inp.required = true; }
+    else { block.style.display = 'none'; inp.required = false; inp.value = ''; }
+  });
+});
+
 const UNITS = {{ units | tojson }};
 const CATS = {{ categories | tojson }};
 function addRow() {

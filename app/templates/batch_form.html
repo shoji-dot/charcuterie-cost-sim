@@ -21,7 +21,10 @@
 
   <!-- 食材テーブル -->
   <div class="card" style="padding:16px;">
-    <p style="color:var(--muted); font-size:0.85rem; margin-bottom:6px;">食材・コスト</p>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <p style="color:var(--muted); font-size:0.85rem;">食材・コスト</p>
+      <a href="/ingredients" style="color:var(--accent); font-size:0.75rem; text-decoration:none;">食材マスター ›</a>
+    </div>
     <!-- ヘッダー -->
     <div style="display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; margin-bottom:4px; padding:0 2px;">
       <span style="color:var(--muted); font-size:0.68rem;">食材名</span>
@@ -41,6 +44,7 @@
         {% set sel_pu = prev.price_unit if prev else sel_unit %}
         <div class="ing-row" style="display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; align-items:center; margin-bottom:6px;">
           <input type="text" name="ing_name" value="{{ ing.name }}"
+            onblur="applyMaster(this)"
             style="background:#1e2a44; border:1px solid #333; border-radius:7px; color:var(--text); padding:7px 6px; font-size:0.82rem; outline:none; width:100%;">
           <input type="number" name="ing_amount"
             value="{{ prev.amount if prev else ing.default_amount }}"
@@ -94,39 +98,63 @@
   </div>
 
   <!-- 粗利設定 -->
+  {% set def_tier = tmpl.default_customer_tier if tmpl and tmpl.default_customer_tier else 'standard' %}
+  {% set def_gm = tmpl.default_gross_margin if tmpl and tmpl.default_gross_margin else '' %}
   <div class="card">
     <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:10px;">粗利設定</label>
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
       <label style="cursor:pointer;">
-        <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="t_p">
-        <div class="tier-btn" data-for="t_p" style="padding:12px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.9rem; font-weight:700;">
+        <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="t_p"
+          {% if def_tier == 'premium' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_p"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if def_tier == 'premium' %}var(--accent){% else %}#333{% endif %}; background:{% if def_tier == 'premium' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
           📈 高粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利75%</span>
         </div>
       </label>
       <label style="cursor:pointer;">
-        <input type="radio" name="customer_tier" value="standard" required style="display:none;" id="t_s">
-        <div class="tier-btn" data-for="t_s" style="padding:12px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.9rem; font-weight:700;">
+        <input type="radio" name="customer_tier" value="standard" required style="display:none;" id="t_s"
+          {% if def_tier == 'standard' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_s"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if def_tier == 'standard' %}var(--accent){% else %}#333{% endif %}; background:{% if def_tier == 'standard' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
           📊 標準粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利65%</span>
         </div>
       </label>
       <label style="cursor:pointer;">
-        <input type="radio" name="customer_tier" value="custom" style="display:none;" id="t_c">
-        <div class="tier-btn" data-for="t_c" style="padding:12px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.9rem; font-weight:700;">
+        <input type="radio" name="customer_tier" value="custom" style="display:none;" id="t_c"
+          {% if def_tier == 'custom' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_c"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if def_tier == 'custom' %}var(--accent){% else %}#333{% endif %}; background:{% if def_tier == 'custom' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
           ✏️ カスタム<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">任意%</span>
         </div>
       </label>
     </div>
     <!-- カスタム粗利入力欄 -->
-    <div id="customRateBlock" style="display:none; margin-top:10px; padding:10px; background:#1a1a2e; border-radius:10px;">
+    <div id="customRateBlock" style="display:{% if def_tier == 'custom' %}block{% else %}none{% endif %}; margin-top:10px; padding:10px; background:#1a1a2e; border-radius:10px;">
       <label style="color:var(--muted); font-size:0.78rem; display:block; margin-bottom:6px;">目標粗利率 (%)</label>
       <div style="display:flex; align-items:center; gap:8px;">
         <input type="number" name="custom_gross_margin" id="customGmInput"
           min="1" max="99" step="1" placeholder="例: 70"
+          value="{{ def_gm | int if def_gm else '' }}"
+          {% if def_tier == 'custom' %}required{% endif %}
           style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
         <span style="color:var(--muted); font-size:1.2rem;">%</span>
       </div>
       <div style="color:var(--muted); font-size:0.72rem; margin-top:4px;">原価率 = 100% - 粗利率</div>
     </div>
+  </div>
+
+  <!-- 廃棄ロス -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:8px;">
+      廃棄ロス <span style="color:#555; font-size:0.75rem;">（任意）</span>
+    </label>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <input type="number" name="waste_weight" inputmode="decimal" step="0.01" min="0"
+        placeholder="例: 0.2"
+        style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+      <span style="color:var(--muted); font-size:1.1rem; flex-shrink:0;">kg</span>
+    </div>
+    <div style="color:var(--muted); font-size:0.72rem; margin-top:4px;">実際に販売できなかった量（切れ端・傷みなど）</div>
   </div>
 
   <!-- 小分け設定 -->
@@ -165,6 +193,24 @@
 <script>
 const UNITS = {{ units | tojson }};
 const CATS = {{ categories | tojson }};
+const MASTERS = {{ (masters_map or {}) | tojson }};
+
+function applyMaster(nameInput) {
+  const row = nameInput.closest('.ing-row');
+  if (!row) return;
+  const m = MASTERS[nameInput.value.trim()];
+  if (!m) return;
+  const priceInput = row.querySelector('[name=ing_unit_price]');
+  const puSel = row.querySelector('[name=ing_price_unit]');
+  const catSel = row.querySelector('[name=ing_category]');
+  if (priceInput && !priceInput.value) {
+    priceInput.value = m.unit_price;
+    priceInput.style.borderColor = 'var(--green)';
+  }
+  if (puSel) puSel.value = m.price_unit;
+  if (catSel) catSel.value = m.category;
+  updateTotal();
+}
 
 function convertToPriceUnit(amount, fromUnit, toUnit) {
   if (fromUnit === toUnit) return amount;
@@ -184,6 +230,7 @@ function addRow(name='', amount='', unit='kg', price='', priceUnit='kg', cat='�
   div.style = 'display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; align-items:center; margin-bottom:6px;';
   div.innerHTML = `
     <input type="text" name="ing_name" value="${name}" placeholder="食材名"
+      onblur="applyMaster(this)"
       style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 6px;font-size:0.82rem;outline:none;width:100%;">
     <input type="number" name="ing_amount" value="${amount}" step="0.001" min="0" inputmode="decimal"
       style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 4px;font-size:0.82rem;outline:none;width:100%;text-align:right;"
@@ -214,6 +261,7 @@ function updateTotal() {
 }
 
 document.querySelectorAll('.ing-row input').forEach(i => i.addEventListener('input', updateTotal));
+document.querySelectorAll('.ing-row [name=ing_name]').forEach(i => i.addEventListener('blur', () => applyMaster(i)));
 updateTotal();
 
 document.querySelectorAll('input[name="customer_tier"]').forEach(r => {

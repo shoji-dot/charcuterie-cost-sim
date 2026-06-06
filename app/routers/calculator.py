@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import schemas, crud, models
 from app.calculator import calculate, get_tier_label
 from app.database import get_db
+from datetime import datetime
 from typing import Annotated, Optional
 
 router = APIRouter()
@@ -27,10 +28,38 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "total_fixed": total_fixed,
             "fixed_per_kg": round(total_fixed / mc.production_kg) if mc.production_kg else 0,
         }
+    # 当月バッチ集計
+    now = datetime.now()
+    monthly_batches = (
+        db.query(models.Batch)
+        .filter(
+            models.Batch.created_at >= datetime(now.year, now.month, 1)
+        )
+        .all()
+    )
+    monthly_stats = None
+    if monthly_batches:
+        total_cost_sum = sum(b.total_cost for b in monthly_batches)
+        total_kg = sum(b.finished_weight for b in monthly_batches)
+        avg_gm = sum(b.gross_margin for b in monthly_batches) / len(monthly_batches)
+        gross_profit = sum(
+            b.recommended_price * b.finished_weight - b.total_cost
+            for b in monthly_batches
+        )
+        monthly_stats = {
+            "year": now.year, "month": now.month,
+            "batch_count": len(monthly_batches),
+            "total_cost": round(total_cost_sum),
+            "total_kg": round(total_kg, 1),
+            "avg_gross_margin": round(avg_gm, 1),
+            "gross_profit": round(gross_profit),
+        }
+
     return templates.TemplateResponse(request, "index.html", {
         "recipes": recipes,
         "has_settings": mc is not None,
         "settings_summary": settings_summary,
+        "monthly_stats": monthly_stats,
     })
 
 

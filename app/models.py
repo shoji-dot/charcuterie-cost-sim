@@ -41,6 +41,8 @@ class Cut(Base):
     cost_per_kg = Column(Float, nullable=False)
     recommended_price = Column(Float, nullable=False)
     yield_rate = Column(Float, nullable=False)
+    gross_margin = Column(Float, nullable=True)
+    custom_gross_margin = Column(Float, nullable=True)
     target_revenue = Column(Float, nullable=False)
     pig = relationship("WholePig", back_populates="cuts")
 
@@ -56,6 +58,8 @@ class RecipeTemplate(Base):
         "TemplateIngredient", back_populates="template",
         cascade="all, delete-orphan", order_by="TemplateIngredient.id"
     )
+    default_customer_tier = Column(String, default="standard")
+    default_gross_margin = Column(Float, nullable=True)
     batches = relationship("Batch", back_populates="template")
 
 
@@ -86,6 +90,7 @@ class Batch(Base):
     recommended_price = Column(Float, nullable=False)
     gross_margin = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
+    waste_weight = Column(Float, nullable=True)
     portion_weight = Column(Float, nullable=True)
     portion_unit = Column(String, default="g")
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -132,3 +137,15 @@ class MonthlyCost(Base):
     eatin_multiplier = Column(Float, default=1.15)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ── 食材マスター ──────────────────────────────────────────────
+class IngredientMaster(Base):
+    """よく使う食材の単価マスター"""
+    __tablename__ = "ingredient_masters"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)
+    unit_price = Column(Float, nullable=False)
+    price_unit = Column(String, nullable=False, default="kg")
+    category = Column(String, nullable=False, default="その他")
+    updated_at = Column(DateTime, default=datetime.utcnow)

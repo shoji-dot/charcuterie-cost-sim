@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from app.database import get_db
 from app import models
-from app.calculator import get_cost_rate
+from app.calculator import get_cost_rate, get_tier_label
 
 router = APIRouter(prefix="/pig")
 templates = Jinja2Templates(directory="app/templates")
@@ -24,11 +24,13 @@ def calc_cut(carcass_weight: float, purchase_price: float,
     recommended_price = cost_per_kg / cost_rate
     yield_rate = (finished_weight / raw_weight) * 100
     target_revenue = recommended_price * finished_weight
+    gross_margin = (1 - cost_rate) * 100
     return {
         "unit_cost": round(unit_cost),
         "cost_per_kg": round(cost_per_kg),
         "recommended_price": round(recommended_price, -1),
         "yield_rate": round(yield_rate, 1),
+        "gross_margin": round(gross_margin, 1),
         "target_revenue": round(target_revenue),
     }
 
@@ -102,6 +104,7 @@ async def cut_add(
     raw_weight: Annotated[float, Form()],
     finished_weight: Annotated[float, Form()],
     customer_tier: Annotated[str, Form()],
+    custom_gross_margin: Annotated[float | None, Form()] = None,
     db: Session = Depends(get_db),
 ):
     pig = db.query(models.WholePig).filter(models.WholePig.id == pig_id).first()
@@ -109,10 +112,12 @@ async def cut_add(
         return RedirectResponse("/pig", status_code=303)
 
     result = calc_cut(pig.carcass_weight, pig.purchase_price,
-                      raw_weight, finished_weight, customer_tier)
+                      raw_weight, finished_weight, customer_tier, custom_gross_margin)
     cut = models.Cut(
         pig_id=pig_id, name=name,
-        raw_weight=raw_weight, finished_weight=finished_weight, customer_tier=customer_tier,
+        raw_weight=raw_weight, finished_weight=finished_weight,
+        customer_tier=customer_tier,
+        custom_gross_margin=custom_gross_margin if customer_tier == "custom" else None,
         **result,
     )
     db.add(cut)

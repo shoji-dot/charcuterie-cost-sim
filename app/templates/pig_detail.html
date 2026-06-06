@@ -48,7 +48,12 @@
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div style="flex:1;">
         <span style="font-size:1.1rem; font-weight:700;">{{ cut.name }}</span>
-        <span style="color:var(--muted); font-size:0.8rem; margin-left:8px;">{{ "高粗利" if cut.customer_tier == "premium" else "標準粗利" }}</span>
+        <span style="color:var(--muted); font-size:0.8rem; margin-left:8px;">
+          {%- if cut.customer_tier == "premium" -%}高粗利 (粗利75%)
+          {%- elif cut.customer_tier == "standard" -%}標準粗利 (粗利65%)
+          {%- else -%}カスタム粗利 ({{ cut.gross_margin }}%)
+          {%- endif -%}
+        </span>
       </div>
       <form method="post" action="/pig/{{ pig.id }}/cut/{{ cut.id }}/delete" style="margin:0;">
         <button type="submit" style="background:none;border:none;color:#555;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>
@@ -113,7 +118,7 @@
     </div>
 
     <!-- 購買層 -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
       <label style="cursor:pointer;">
         <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="cp">
         <div class="tier-btn" data-for="cp"
@@ -128,7 +133,23 @@
           📊 標準粗利<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">粗利65%</span>
         </div>
       </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="custom" style="display:none;" id="cc">
+        <div class="tier-btn" data-for="cc"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:1rem; font-weight:700;">
+          ✏️ カスタム<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">任意%</span>
+        </div>
+      </label>
     </div>
+
+    <!-- カスタム粗利入力（カスタム選択時のみ表示） -->
+    <div id="custom_gm_row" style="display:none; margin-bottom:16px;">
+      <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:4px;">目標粗利率 (%)</label>
+      <input type="number" id="custom_gross_margin" name="custom_gross_margin"
+        inputmode="decimal" step="1" min="1" max="99" placeholder="例: 70"
+        style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+    </div>
+    <div style="margin-bottom:16px;"></div>
 
     <button type="submit" class="btn btn-primary" style="padding:18px; font-size:1.2rem;">
       追加する ＋
@@ -149,6 +170,16 @@
       const sel = document.querySelector(`.tier-btn[data-for="${radio.id}"]`);
       sel.style.border = '2px solid var(--accent)';
       sel.style.background = 'rgba(233,69,96,0.15)';
+      const row = document.getElementById('custom_gm_row');
+      const inp = document.getElementById('custom_gross_margin');
+      if (radio.value === 'custom') {
+        row.style.display = 'block';
+        inp.required = true;
+      } else {
+        row.style.display = 'none';
+        inp.required = false;
+        inp.value = '';
+      }
     });
   });
   document.querySelectorAll('.preset-btn').forEach(btn => {

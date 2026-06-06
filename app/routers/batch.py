@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+import csv
+import io
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -48,6 +50,30 @@ def calc_batch(total_cost: float, finished_weight: float, customer_tier: str,
     }
 
 
+@router.get("/ranking", response_class=HTMLResponse)
+async def batch_ranking(request: Request, db: Session = Depends(get_db)):
+    """粗利額ランキング"""
+    batches = db.query(models.Batch).all()
+    ranked = []
+    for b in batches:
+        gross_profit = round(b.recommended_price * b.finished_weight - b.total_cost)
+        ranked.append({
+            "id": b.id,
+            "name": b.name,
+            "gross_margin": b.gross_margin,
+            "finished_weight": b.finished_weight,
+            "gross_profit": gross_profit,
+            "cost_per_kg": round(b.cost_per_kg),
+            "recommended_price": round(b.recommended_price),
+            "created_at": b.created_at,
+        })
+    ranked.sort(key=lambda x: x["gross_profit"], reverse=True)
+    return templates.TemplateResponse(
+        request, "batch_ranking.html",
+        {"ranked": ranked},
+    )
+
+
 @router.get("", response_class=HTMLResponse)
 async def batch_list(request: Request, db: Session = Depends(get_db)):
     templates_list = db.query(models.RecipeTemplate).order_by(models.RecipeTemplate.id).all()
@@ -81,6 +107,9 @@ async def batch_new_form(request: Request, template_id: int, db: Session = Depen
                 "category": ing.category,
             }
 
+    masters = db.query(models.IngredientMaster).all()
+    masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
+
     return templates.TemplateResponse(
         request, "batch_form.html",
         {
@@ -89,15 +118,18 @@ async def batch_new_form(request: Request, template_id: int, db: Session = Depen
             "units": UNITS,
             "last_batch": last_batch,
             "last_ing_map": last_ing_map,
+            "masters_map": masters_map,
         },
     )
 
 
 @router.get("/new", response_class=HTMLResponse)
-async def batch_new_custom(request: Request):
+async def batch_new_custom(request: Request, db: Session = Depends(get_db)):
+    masters = db.query(models.IngredientMaster).all()
+    masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
     return templates.TemplateResponse(
         request, "batch_form.html",
-        {"tmpl": None, "categories": CATEGORIES, "units": UNITS},
+        {"tmpl": None, "categories": CATEGORIES, "units": UNITS, "masters_map": masters_map},
     )
 
 
@@ -120,6 +152,8 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
         portion_weight_raw = form.get("portion_weight", "")
         portion_weight = float(portion_weight_raw) if portion_weight_raw else None
         portion_unit = form.get("portion_unit", "g")
+        waste_weight_raw = form.get("waste_weight", "")
+        waste_weight = float(waste_weight_raw) if waste_weight_raw else None
     except ValueError as e:
         return templates.TemplateResponse(
             request, "batch_form.html",
@@ -178,6 +212,7 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
         customer_tier=customer_tier,
         custom_rate=result.pop("custom_rate"),
         notes=notes,
+        waste_weight=waste_weight,
         portion_weight=portion_weight,
         portion_unit=portion_unit,
         **result,
@@ -223,6 +258,31 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
             "eatin_per_item": round(eatin_per_item, -1),
         }
 
+    # 値上げアラート：同テンプレートの直前バッチと比較
+    cost_alert = None
+    if batch.template_id:
+        prev_batch = (
+            db.query(models.Batch)
+            .filter(
+                models.Batch.template_id == batch.template_id,
+                models.Batch.id != batch.id,
+                models.Batch.created_at < batch.created_at,
+            )
+            .order_by(models.Batch.created_at.desc())
+            .first()
+        )
+        if prev_batch and prev_batch.cost_per_kg > 0:
+            diff_pct = (batch.cost_per_kg - prev_batch.cost_per_kg) / prev_batch.cost_per_kg * 100
+            if diff_pct > 3.0:
+                cost_alert = {
+                    "prev_cost_per_kg": round(prev_batch.cost_per_kg),
+                    "curr_cost_per_kg": round(batch.cost_per_kg),
+                    "diff": round(batch.cost_per_kg - prev_batch.cost_per_kg),
+                    "diff_pct": round(diff_pct, 1),
+                    "prev_date": prev_batch.created_at.strftime("%m/%d"),
+                    "prev_name": prev_batch.name,
+                }
+
     return templates.TemplateResponse(
         request, "batch_result.html",
         {
@@ -231,7 +291,50 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
             "by_category": by_category,
             "full_price": full_price,
             "mc": mc,
+            "cost_alert": cost_alert,
         },
+    )
+
+
+@router.get("/export/csv")
+async def batch_export_csv(db: Session = Depends(get_db)):
+    """バッチ履歴をCSVでダウンロード"""
+    batches = db.query(models.Batch).order_by(models.Batch.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "日付", "バッチ名", "レシピ", "完成量(kg)", "廃棄量(kg)",
+        "総原価(円)", "原価/kg(円)", "推奨価格/kg(円)", "粗利率(%)", "区分",
+    ])
+    for b in batches:
+        if b.customer_tier == "premium":
+            tier = "高粗利"
+        elif b.customer_tier == "standard":
+            tier = "標準粗利"
+        else:
+            tier = f"カスタム粗利"
+        recipe = b.template.name if b.template else ""
+        writer.writerow([
+            b.created_at.strftime("%Y-%m-%d"),
+            b.name,
+            recipe,
+            b.finished_weight,
+            b.waste_weight or "",
+            b.total_cost,
+            b.cost_per_kg,
+            b.recommended_price,
+            b.gross_margin,
+            tier,
+        ])
+
+    output.seek(0)
+    # BOM付きUTF-8でExcelでも文字化けしない
+    content_bytes = ("\ufeff" + output.getvalue()).encode("utf-8")
+    return StreamingResponse(
+        iter([content_bytes]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=batch_history.csv"},
     )
 
 
@@ -278,6 +381,10 @@ async def template_edit_save(request: Request, template_id: int, db: Session = D
             )
     tmpl.name = new_name
     tmpl.notes = form.get("notes", "")
+    def_tier = form.get("default_customer_tier", "standard")
+    def_gm_raw = form.get("default_gross_margin", "")
+    tmpl.default_customer_tier = def_tier
+    tmpl.default_gross_margin = float(def_gm_raw) if def_gm_raw and def_tier == "custom" else None
 
     for old in tmpl.ingredients:
         db.delete(old)
@@ -320,7 +427,14 @@ async def template_new_save(request: Request, db: Session = Depends(get_db)):
     if existing:
         return RedirectResponse(f"/batch/template/{existing.id}/edit", status_code=303)
 
-    tmpl = models.RecipeTemplate(name=name, notes=form.get("notes", ""))
+    def_tier = form.get("default_customer_tier", "standard")
+    def_gm_raw = form.get("default_gross_margin", "")
+    def_gm = float(def_gm_raw) if def_gm_raw else None
+    tmpl = models.RecipeTemplate(
+        name=name, notes=form.get("notes", ""),
+        default_customer_tier=def_tier,
+        default_gross_margin=def_gm if def_tier == "custom" else None,
+    )
     db.add(tmpl)
     db.flush()
 
