@@ -55,11 +55,19 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "gross_profit": round(gross_profit),
         }
 
+    recent_batches = (
+        db.query(models.Batch)
+        .order_by(models.Batch.created_at.desc())
+        .limit(3)
+        .all()
+    )
+
     return templates.TemplateResponse(request, "index.html", {
         "recipes": recipes,
         "has_settings": mc is not None,
         "settings_summary": settings_summary,
         "monthly_stats": monthly_stats,
+        "recent_batches": recent_batches,
     })
 
 

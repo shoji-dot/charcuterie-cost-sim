@@ -66,6 +66,30 @@
 </a>
 {% endif %}
 
+<!-- 最近の仕込み -->
+{% if recent_batches %}
+<div class="card" style="padding:16px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <p style="color:var(--muted); font-size:0.78rem; margin:0;">最近の仕込み</p>
+    <a href="/batch" style="color:var(--accent); font-size:0.75rem; text-decoration:none;">すべて見る →</a>
+  </div>
+  {% for b in recent_batches %}
+  <a href="/batch/{{ b.id }}" style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2a2a4a; text-decoration:none; color:var(--text);">
+    <div style="flex:1;">
+      <div style="font-size:0.95rem; font-weight:600;">{{ b.name }}</div>
+      <div style="color:var(--muted); font-size:0.75rem; margin-top:2px;">
+        {{ b.created_at.strftime('%m/%d') }} &nbsp;|&nbsp; {{ b.finished_weight }}kg
+      </div>
+    </div>
+    <div style="text-align:right; flex-shrink:0;">
+      <div style="color:var(--accent); font-weight:700; font-size:0.9rem;">¥{{ "{:,.0f}".format(b.recommended_price) }}/kg</div>
+      <div style="color:var(--green); font-size:0.75rem;">粗利{{ b.gross_margin }}%</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
 <a href="/calc" class="btn btn-ghost" style="font-size:0.95rem; padding:14px;">
   ＋ シンプル単品計算
 </a>
