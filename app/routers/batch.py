@@ -29,18 +29,16 @@ def calc_batch(total_cost: float, finished_weight: float, customer_tier: str,
     }
 
 
-# ── レシピ一覧（テンプレート選択） ─────────────────────
 @router.get("", response_class=HTMLResponse)
 async def batch_list(request: Request, db: Session = Depends(get_db)):
     templates_list = db.query(models.RecipeTemplate).order_by(models.RecipeTemplate.id).all()
     batches = db.query(models.Batch).order_by(models.Batch.created_at.desc()).limit(20).all()
     return templates.TemplateResponse(
-        "batch_list.html",
-        {"request": request, "recipe_templates": templates_list, "batches": batches},
+        request, "batch_list.html",
+        {"recipe_templates": templates_list, "batches": batches},
     )
 
 
-# ── テンプレートから新規バッチフォーム ─────────────────
 @router.get("/new/{template_id}", response_class=HTMLResponse)
 async def batch_new_form(request: Request, template_id: int, db: Session = Depends(get_db)):
     tmpl = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()
@@ -65,9 +63,8 @@ async def batch_new_form(request: Request, template_id: int, db: Session = Depen
             }
 
     return templates.TemplateResponse(
-        "batch_form.html",
+        request, "batch_form.html",
         {
-            "request": request,
             "tmpl": tmpl,
             "categories": CATEGORIES,
             "units": UNITS,
@@ -77,13 +74,11 @@ async def batch_new_form(request: Request, template_id: int, db: Session = Depen
     )
 
 
-# ── カスタム（テンプレートなし）新規バッチフォーム ─────
 @router.get("/new", response_class=HTMLResponse)
 async def batch_new_custom(request: Request):
     return templates.TemplateResponse(
-        "batch_form.html",
+        request, "batch_form.html",
         {
-            "request": request,
             "tmpl": None,
             "categories": CATEGORIES,
             "units": UNITS,
@@ -91,7 +86,6 @@ async def batch_new_custom(request: Request):
     )
 
 
-# ── バッチ計算・保存 ───────────────────────────────────
 @router.post("/save")
 async def batch_save(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
@@ -156,7 +150,6 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/batch/{batch.id}", status_code=303)
 
 
-# ── バッチ詳細・結果 ───────────────────────────────────
 @router.get("/{batch_id}", response_class=HTMLResponse)
 async def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db)):
     batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
@@ -189,9 +182,8 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
         }
 
     return templates.TemplateResponse(
-        "batch_result.html",
+        request, "batch_result.html",
         {
-            "request": request,
             "batch": batch,
             "tier_label": tier_label,
             "by_category": by_category,
@@ -201,7 +193,6 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
     )
 
 
-# ── バッチ削除 ─────────────────────────────────────────
 @router.post("/{batch_id}/delete")
 async def batch_delete(batch_id: int, db: Session = Depends(get_db)):
     batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
@@ -211,15 +202,14 @@ async def batch_delete(batch_id: int, db: Session = Depends(get_db)):
     return RedirectResponse("/batch", status_code=303)
 
 
-# ── テンプレート食材編集（季節アレンジ対応）──────────────
 @router.get("/template/{template_id}/edit", response_class=HTMLResponse)
 async def template_edit_form(request: Request, template_id: int, db: Session = Depends(get_db)):
     tmpl = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()
     if not tmpl:
         return RedirectResponse("/batch", status_code=303)
     return templates.TemplateResponse(
-        "template_edit.html",
-        {"request": request, "tmpl": tmpl, "categories": CATEGORIES, "units": UNITS},
+        request, "template_edit.html",
+        {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS},
     )
 
 
@@ -252,12 +242,11 @@ async def template_edit_save(request: Request, template_id: int, db: Session = D
     return RedirectResponse(f"/batch/new/{template_id}", status_code=303)
 
 
-# ── テンプレート新規作成 ───────────────────────────────
 @router.get("/template/new", response_class=HTMLResponse)
 async def template_new_form(request: Request):
     return templates.TemplateResponse(
-        "template_edit.html",
-        {"request": request, "tmpl": None, "categories": CATEGORIES, "units": UNITS},
+        request, "template_edit.html",
+        {"tmpl": None, "categories": CATEGORIES, "units": UNITS},
     )
 
 
@@ -267,8 +256,8 @@ async def template_new_save(request: Request, db: Session = Depends(get_db)):
     name = form.get("name", "").strip()
     if not name:
         return templates.TemplateResponse(
-            "template_edit.html",
-            {"request": request, "tmpl": None, "categories": CATEGORIES, "units": UNITS, "error": "名前を入力してください"},
+            request, "template_edit.html",
+            {"tmpl": None, "categories": CATEGORIES, "units": UNITS, "error": "名前を入力してください"},
         )
     existing = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.name == name).first()
     if existing:
@@ -293,7 +282,6 @@ async def template_new_save(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/batch/new/{tmpl.id}", status_code=303)
 
 
-# ── テンプレート削除 ───────────────────────────────────
 @router.post("/template/{template_id}/delete")
 async def template_delete(template_id: int, db: Session = Depends(get_db)):
     tmpl = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()

@@ -12,7 +12,6 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def get_current_monthly(db: Session) -> models.MonthlyCost | None:
-    """最新の月次設定を取得"""
     return (
         db.query(models.MonthlyCost)
         .order_by(models.MonthlyCost.year.desc(), models.MonthlyCost.month.desc())
@@ -21,18 +20,8 @@ def get_current_monthly(db: Session) -> models.MonthlyCost | None:
 
 
 def calc_overhead(mc: models.MonthlyCost) -> dict:
-    """固定費分析を計算"""
     total_fixed = mc.rent + mc.labor + mc.utilities + mc.supplies + mc.other
     fixed_per_kg = total_fixed / mc.production_kg if mc.production_kg > 0 else 0
-    # 目標利益を出すために必要な最低売上/kg
-    # 変動費(食材)は別途加算するため、ここでは固定費・利益の按分のみ
-    # 推奨原価率の根拠:
-    #   売上 = 食材費 + 固定費按分 + 利益
-    #   原価率 = 食材費 / 売上  → 固定費と利益をどう扱うかを示す
-    # 別の見方: 固定費按分 + 利益を "上乗せ係数" として可視化
-    # 必要売上倍率 = 1 / (1 - 固定費率 - 目標利益率)
-    # ここでは固定費を売上に対する比率で表現するため、売上の目安を平均原価から逆算
-    # → 固定費/kg をシンプルに表示し、バッチ計算側で上乗せできるようにする
     return {
         "total_fixed": round(total_fixed),
         "fixed_per_kg": round(fixed_per_kg),
@@ -57,9 +46,8 @@ async def settings_view(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     return templates.TemplateResponse(
-        "settings.html",
+        request, "settings.html",
         {
-            "request": request,
             "mc": mc,
             "overhead": overhead,
             "history": history,
@@ -87,7 +75,6 @@ async def settings_save(
     notes: Annotated[str, Form()] = "",
     db: Session = Depends(get_db),
 ):
-    # 同月の設定があれば上書き
     existing = (
         db.query(models.MonthlyCost)
         .filter(models.MonthlyCost.year == year, models.MonthlyCost.month == month)

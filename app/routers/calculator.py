@@ -27,8 +27,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "total_fixed": total_fixed,
             "fixed_per_kg": round(total_fixed / mc.production_kg) if mc.production_kg else 0,
         }
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "recipes": recipes,
         "has_settings": mc is not None,
         "settings_summary": settings_summary,
@@ -37,7 +36,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/calc", response_class=HTMLResponse)
 async def calc_form(request: Request):
-    return templates.TemplateResponse("input.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "input.html", {"error": None})
 
 
 @router.post("/calc", response_class=HTMLResponse)
@@ -54,7 +53,7 @@ async def calc_submit(
             raise ValueError("入力値エラー")
     except Exception:
         return templates.TemplateResponse(
-            "input.html", {"request": request, "error": "入力値を確認してください"}
+            request, "input.html", {"error": "入力値を確認してください"}
         )
 
     result = calculate(raw_weight, raw_price, finished_weight, customer_tier, custom_gross_margin)
@@ -64,8 +63,8 @@ async def calc_submit(
         "finished_weight": finished_weight, "customer_tier": customer_tier,
     }
     return templates.TemplateResponse(
-        "result.html",
-        {"request": request, "result": result, "input": inp, "tier_label": tier_label},
+        request, "result.html",
+        {"result": result, "input": inp, "tier_label": tier_label},
     )
 
 
@@ -99,8 +98,8 @@ async def save_recipe(
             "total_fixed": total_fixed,
             "fixed_per_kg": round(total_fixed / mc.production_kg) if mc.production_kg else 0,
         }
-    return templates.TemplateResponse("index.html", {
-        "request": request, "recipes": recipes, "saved": name,
+    return templates.TemplateResponse(request, "index.html", {
+        "recipes": recipes, "saved": name,
         "has_settings": mc is not None, "settings_summary": settings_summary,
     })
 
@@ -109,16 +108,16 @@ async def save_recipe(
 async def delete_recipe(request: Request, recipe_id: int, db: Session = Depends(get_db)):
     crud.delete_recipe(db, recipe_id)
     recipes = crud.list_recipes(db)
-    return templates.TemplateResponse("index.html", {"request": request, "recipes": recipes,
-        "has_settings": False, "settings_summary": None})
+    return templates.TemplateResponse(request, "index.html", {
+        "recipes": recipes, "has_settings": False, "settings_summary": None})
 
 
 @router.get("/recipe/{recipe_id}", response_class=HTMLResponse)
 async def load_recipe(request: Request, recipe_id: int, db: Session = Depends(get_db)):
     recipe = crud.get_recipe(db, recipe_id)
     if not recipe:
-        return templates.TemplateResponse("index.html", {"request": request, "recipes": [],
-            "has_settings": False, "settings_summary": None})
+        return templates.TemplateResponse(request, "index.html", {
+            "recipes": [], "has_settings": False, "settings_summary": None})
     result = {
         "yield_rate": recipe.yield_rate,
         "cost_per_kg": recipe.cost_per_kg,
@@ -133,9 +132,8 @@ async def load_recipe(request: Request, recipe_id: int, db: Session = Depends(ge
     }
     tier_label = get_tier_label(recipe.customer_tier, recipe.gross_margin)
     return templates.TemplateResponse(
-        "result.html",
+        request, "result.html",
         {
-            "request": request,
             "result": result,
             "input": inp,
             "tier_label": tier_label,

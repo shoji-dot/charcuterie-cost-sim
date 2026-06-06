@@ -16,13 +16,13 @@ PRESET_CUTS = ["ヒレ", "ロース", "肩ロース", "バラ", "モモ", "カ�
 def calc_cut(carcass_weight: float, purchase_price: float,
              raw_weight: float, finished_weight: float, customer_tier: str) -> dict:
     """部位1点の原価計算"""
-    unit_cost_rate = raw_weight / carcass_weight          # 重量比で原価を按分
-    unit_cost = purchase_price * unit_cost_rate           # 部位原料原価 (円)
-    cost_per_kg = unit_cost / finished_weight             # 完成品原価/kg
+    unit_cost_rate = raw_weight / carcass_weight
+    unit_cost = purchase_price * unit_cost_rate
+    cost_per_kg = unit_cost / finished_weight
     cost_rate = COST_RATE[customer_tier]
-    recommended_price = cost_per_kg / cost_rate           # 推奨販売価格/kg
+    recommended_price = cost_per_kg / cost_rate
     yield_rate = (finished_weight / raw_weight) * 100
-    target_revenue = recommended_price * finished_weight  # 売上目標 (円)
+    target_revenue = recommended_price * finished_weight
     return {
         "unit_cost": round(unit_cost),
         "cost_per_kg": round(cost_per_kg),
@@ -51,20 +51,17 @@ def pig_summary(pig: models.WholePig) -> dict:
     }
 
 
-# --- 1頭一覧 ---
 @router.get("", response_class=HTMLResponse)
 async def pig_list(request: Request, db: Session = Depends(get_db)):
     pigs = db.query(models.WholePig).order_by(models.WholePig.created_at.desc()).all()
-    return templates.TemplateResponse("pig_list.html", {"request": request, "pigs": pigs})
+    return templates.TemplateResponse(request, "pig_list.html", {"pigs": pigs})
 
 
-# --- 新規1頭登録フォーム ---
 @router.get("/new", response_class=HTMLResponse)
 async def pig_new_form(request: Request):
-    return templates.TemplateResponse("pig_new.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "pig_new.html", {"error": None})
 
 
-# --- 新規1頭登録 ---
 @router.post("/new")
 async def pig_new_submit(
     request: Request,
@@ -75,7 +72,7 @@ async def pig_new_submit(
 ):
     if carcass_weight <= 0 or purchase_price <= 0:
         return templates.TemplateResponse(
-            "pig_new.html", {"request": request, "error": "正の数を入力してください"}
+            request, "pig_new.html", {"error": "正の数を入力してください"}
         )
     pig = models.WholePig(name=name, carcass_weight=carcass_weight, purchase_price=purchase_price)
     db.add(pig)
@@ -84,7 +81,6 @@ async def pig_new_submit(
     return RedirectResponse(f"/pig/{pig.id}", status_code=303)
 
 
-# --- 部位一覧 + 収支 ---
 @router.get("/{pig_id}", response_class=HTMLResponse)
 async def pig_detail(request: Request, pig_id: int, db: Session = Depends(get_db)):
     pig = db.query(models.WholePig).filter(models.WholePig.id == pig_id).first()
@@ -92,9 +88,8 @@ async def pig_detail(request: Request, pig_id: int, db: Session = Depends(get_db
         return RedirectResponse("/pig", status_code=303)
     summary = pig_summary(pig)
     return templates.TemplateResponse(
-        "pig_detail.html",
+        request, "pig_detail.html",
         {
-            "request": request,
             "pig": pig,
             "summary": summary,
             "presets": PRESET_CUTS,
@@ -103,7 +98,6 @@ async def pig_detail(request: Request, pig_id: int, db: Session = Depends(get_db
     )
 
 
-# --- 部位追加 ---
 @router.post("/{pig_id}/cut")
 async def cut_add(
     request: Request,
@@ -129,7 +123,6 @@ async def cut_add(
     return RedirectResponse(f"/pig/{pig_id}", status_code=303)
 
 
-# --- 部位削除 ---
 @router.post("/{pig_id}/cut/{cut_id}/delete")
 async def cut_delete(pig_id: int, cut_id: int, db: Session = Depends(get_db)):
     cut = db.query(models.Cut).filter(models.Cut.id == cut_id, models.Cut.pig_id == pig_id).first()
@@ -139,7 +132,6 @@ async def cut_delete(pig_id: int, cut_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/pig/{pig_id}", status_code=303)
 
 
-# --- 1頭削除 ---
 @router.post("/{pig_id}/delete")
 async def pig_delete(pig_id: int, db: Session = Depends(get_db)):
     pig = db.query(models.WholePig).filter(models.WholePig.id == pig_id).first()
