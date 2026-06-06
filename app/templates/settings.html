@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>⚙ 経営設定・固定費</h1>
+<p style="color:var(--muted); font-size:0.82rem; margin-bottom:16px;">月次固定費を登録することで「なぜこの価格か」の根拠が生まれます</p>
+
+{% if overhead %}
+<!-- ダッシュボード -->
+<div class="card" style="padding:20px; margin-bottom:16px;">
+  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">
+    現在の設定（{{ mc.year }}年{{ mc.month }}月）
+  </p>
+
+  <!-- 固定費合計 -->
+  <div style="text-align:center; margin-bottom:16px;">
+    <div style="color:var(--muted); font-size:0.8rem;">月次固定費合計</div>
+    <div style="font-size:2.8rem; font-weight:800; color:var(--accent);">
+      ¥{{ "{:,.0f}".format(overhead.total_fixed) }}
+    </div>
+  </div>
+
+  <!-- 内訳バー -->
+  {% set total = overhead.total_fixed if overhead.total_fixed > 0 else 1 %}
+  <div style="margin-bottom:14px;">
+    {% for label, val, color in [
+        ('家賃', overhead.rent, '#e94560'),
+        ('人件費', overhead.labor, '#0f3460'),
+        ('光熱費', overhead.utilities, '#fbbf24'),
+        ('消耗品', overhead.supplies, '#4ade80'),
+        ('その他', overhead.other, '#888')
+    ] %}
+    {% if val > 0 %}
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+      <div style="width:60px; color:var(--muted); font-size:0.75rem; text-align:right;">{{ label }}</div>
+      <div style="flex:1; background:#2a2a4a; border-radius:4px; height:18px; overflow:hidden;">
+        <div style="width:{{ (val / total * 100) | int }}%; background:{{ color }}; height:100%;"></div>
+      </div>
+      <div style="width:80px; font-size:0.8rem; font-weight:600; text-align:right;">¥{{ "{:,.0f}".format(val) }}</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <!-- キーメトリクス -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+    <div class="card" style="text-align:center; padding:14px; margin:0;">
+      <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">固定費 / kg</div>
+      <div style="font-size:1.6rem; font-weight:700; color:var(--yellow);">
+        ¥{{ "{:,.0f}".format(overhead.fixed_per_kg) }}
+      </div>
+      <div style="color:var(--muted); font-size:0.7rem;">月間{{ mc.production_kg }}kg生産想定</div>
+    </div>
+    <div class="card" style="text-align:center; padding:14px; margin:0;">
+      <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">目標利益率</div>
+      <div style="font-size:1.6rem; font-weight:700; color:var(--green);">
+        {{ overhead.target_profit_rate_pct }}%
+      </div>
+      <div style="color:var(--muted); font-size:0.7rem;">純利益の目標</div>
+    </div>
+  </div>
+
+  <!-- テイクアウト/イートイン設定サマリー -->
+  <div style="background:#1a1a2e; border-radius:10px; padding:12px; font-size:0.82rem;">
+    <div style="color:var(--muted); margin-bottom:6px; font-size:0.75rem;">提供形態の設定</div>
+    <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #2a2a4a;">
+      <span>🥡 テイクアウト包材費</span>
+      <strong>¥{{ "{:,.0f}".format(mc.takeout_packaging) }} / 個</strong>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #2a2a4a;">
+      <span>　 平均1個あたり重量</span>
+      <strong>{{ mc.takeout_unit_weight }} kg</strong>
+    </div>
+    <div style="display:flex; justify-content:space-between; padding:4px 0;">
+      <span>🍽 イートイン価格倍率</span>
+      <strong>× {{ mc.eatin_multiplier }}</strong>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center; color:var(--muted); padding:30px; margin-bottom:16px;">
+  まだ設定がありません。<br>下のフォームで今月の固定費を入力してください。
+</div>
+{% endif %}
+
+<!-- 入力フォーム -->
+<div class="card" style="padding:20px;">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:14px;">月次固定費を入力</p>
+  <form method="post" action="/settings/save">
+    <!-- 年月 -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+      <div>
+        <label style="color:var(--muted); font-size:0.75rem; display:block; margin-bottom:4px;">年</label>
+        <input type="number" name="year" value="{{ current_year }}" min="2020" max="2099"
+          style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:1.1rem; outline:none; text-align:center;">
+      </div>
+      <div>
+        <label style="color:var(--muted); font-size:0.75rem; display:block; margin-bottom:4px;">月</label>
+        <input type="number" name="month" value="{{ current_month }}" min="1" max="12"
+          style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:1.1rem; outline:none; text-align:center;">
+      </div>
+    </div>
+
+    <!-- 固定費項目 -->
+    {% set fields = [
+      ('rent', '家賃', mc.rent if mc else 0),
+      ('labor', '人件費（自分含む）', mc.labor if mc else 0),
+      ('utilities', '光熱費', mc.utilities if mc else 0),
+      ('supplies', '消耗品・包材', mc.supplies if mc else 0),
+      ('other', 'その他', mc.other if mc else 0),
+    ] %}
+    {% for fname, label, val in fields %}
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #2a2a4a;">
+      <label style="color:var(--text); font-size:0.9rem; flex:1;">{{ label }}</label>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <span style="color:var(--muted);">¥</span>
+        <input type="number" name="{{ fname }}" value="{{ val | int }}" min="0" step="1000" inputmode="numeric"
+          style="width:110px; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:1rem; outline:none; text-align:right;"
+          oninput="updateTotal()">
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- 合計表示 -->
+    <div style="display:flex; justify-content:space-between; padding:10px 0; font-weight:700;">
+      <span>合計</span>
+      <span id="fixedTotal" style="color:var(--accent); font-size:1.2rem;">
+        ¥{{ "{:,.0f}".format((mc.rent + mc.labor + mc.utilities + mc.supplies + mc.other) if mc else 0) }}
+      </span>
+    </div>
+
+    <!-- 月間生産量・目標利益率 -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; margin-bottom:12px;">
+      <div>
+        <label style="color:var(--muted); font-size:0.75rem; display:block; margin-bottom:4px;">月間総生産量 (kg)</label>
+        <input type="number" name="production_kg" value="{{ mc.production_kg if mc else 100 }}" step="1" min="1" inputmode="decimal"
+          style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:1.2rem; font-weight:700; outline:none; text-align:right;">
+      </div>
+      <div>
+        <label style="color:var(--muted); font-size:0.75rem; display:block; margin-bottom:4px;">目標利益率 (%)</label>
+        <input type="number" name="target_profit_rate" value="{{ (mc.target_profit_rate * 100) | int if mc else 20 }}" step="1" min="0" max="80" inputmode="numeric"
+          style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:1.2rem; font-weight:700; outline:none; text-align:right;">
+      </div>
+    </div>
+
+    <!-- テイクアウト/イートイン -->
+    <details style="margin-bottom:14px;">
+      <summary style="color:var(--muted); font-size:0.85rem; cursor:pointer; padding:8px 0;">
+        🥡 テイクアウト / イートイン設定
+      </summary>
+      <div style="padding-top:10px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <div>
+            <label style="color:var(--muted); font-size:0.72rem; display:block; margin-bottom:4px;">包材費(円/個)</label>
+            <input type="number" name="takeout_packaging" value="{{ mc.takeout_packaging | int if mc else 50 }}" step="10" min="0" inputmode="numeric"
+              style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:1rem; outline:none; text-align:right;">
+          </div>
+          <div>
+            <label style="color:var(--muted); font-size:0.72rem; display:block; margin-bottom:4px;">平均重量(kg/個)</label>
+            <input type="number" name="takeout_unit_weight" value="{{ mc.takeout_unit_weight if mc else 0.2 }}" step="0.05" min="0.05" inputmode="decimal"
+              style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:1rem; outline:none; text-align:right;">
+          </div>
+          <div>
+            <label style="color:var(--muted); font-size:0.72rem; display:block; margin-bottom:4px;">イートイン倍率</label>
+            <input type="number" name="eatin_multiplier" value="{{ mc.eatin_multiplier if mc else 1.15 }}" step="0.05" min="1.0" inputmode="decimal"
+              style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:1rem; outline:none; text-align:right;">
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div>
+      <label style="color:var(--muted); font-size:0.75rem; display:block; margin-bottom:4px;">メモ</label>
+      <input type="text" name="notes" value="{{ mc.notes if mc and mc.notes else '' }}" placeholder="例: 夏季は光熱費増"
+        style="width:100%; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:0.9rem; outline:none;">
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top:16px; font-size:1.2rem; padding:20px;">
+      保存する
+    </button>
+  </form>
+</div>
+
+<!-- 履歴 -->
+{% if history %}
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">過去の設定</p>
+  {% for h in history %}
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #2a2a4a; font-size:0.85rem;">
+    <span>{{ h.year }}年{{ h.month }}月</span>
+    <span style="color:var(--muted);">¥{{ "{:,.0f}".format(h.rent+h.labor+h.utilities+h.supplies+h.other) }}</span>
+    <span style="color:var(--yellow);">¥{{ "{:,.0f}".format((h.rent+h.labor+h.utilities+h.supplies+h.other)/h.production_kg if h.production_kg else 0) }}/kg</span>
+    <form method="post" action="/settings/delete/{{ h.id }}" style="margin:0;">
+      <button type="submit" style="background:none;border:none;color:#555;cursor:pointer;padding:4px;">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<a href="/" class="btn btn-ghost">← ホーム</a>
+
+<script>
+function updateTotal() {
+  const fields = ['rent','labor','utilities','supplies','other'];
+  let total = 0;
+  fields.forEach(f => {
+    total += parseFloat(document.querySelector(`[name=${f}]`)?.value || 0);
+  });
+  document.getElementById('fixedTotal').textContent = '¥' + Math.round(total).toLocaleString();
+}
+</script>
+{% endblock %}

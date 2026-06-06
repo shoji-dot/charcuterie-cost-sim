@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>原価シミュレーター</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --card: #16213e;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --text: #eaeaea;
+      --muted: #888;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.1rem; color: var(--muted); margin-bottom: 20px; text-align: center; letter-spacing: 0.1em; }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 20px;
+      border: none;
+      border-radius: 16px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      margin-bottom: 12px;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--accent2); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid #333; font-size: 1rem; padding: 14px; }
+    .btn:active { opacity: 0.8; }
+  </style>
+</head>
+<body>
+  {% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>🐷 1頭管理</h1>
+
+<a href="/pig/new" class="btn btn-primary" style="font-size:1.4rem; padding:24px;">
+  ＋ 新しい1頭を登録
+</a>
+
+{% if pigs %}
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">登録済み</p>
+  {% for p in pigs %}
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #2a2a4a;">
+    <a href="/pig/{{ p.id }}" style="color:var(--text); text-decoration:none; flex:1;">
+      <div style="font-size:1.1rem; font-weight:600;">{{ p.name }}</div>
+      <div style="color:var(--muted); font-size:0.8rem; margin-top:2px;">
+        枝肉 {{ p.carcass_weight }}kg &nbsp;|&nbsp; ¥{{ "{:,.0f}".format(p.purchase_price) }} &nbsp;|&nbsp; {{ p.cuts|length }}部位
+      </div>
+    </a>
+    <form method="post" action="/pig/{{ p.id }}/delete" style="margin:0;">
+      <button type="submit" style="background:none;border:none;color:#555;font-size:1.3rem;cursor:pointer;padding:8px;">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center; color:var(--muted); padding:40px;">
+  まだ登録がありません
+</div>
+{% endif %}
+
+<a href="/" class="btn btn-ghost">← ホーム</a>
+{% endblock %}

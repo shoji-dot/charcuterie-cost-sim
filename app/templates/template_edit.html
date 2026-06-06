@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if tmpl %}✏ {{ tmpl.name }}{% else %}＋ 新規レシピ{% endif %}</h1>
+{% if tmpl %}<p style="color:var(--muted); font-size:0.85rem; margin-bottom:16px;">食材リストを編集（次回の計算に反映）</p>{% endif %}
+
+{% if error %}
+<div class="card" style="border-left:4px solid var(--accent); color:var(--accent);">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="{% if tmpl %}/batch/template/{{ tmpl.id }}/edit{% else %}/batch/template/new{% endif %}">
+
+  {% if not tmpl %}
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">レシピ名</label>
+    <input type="text" name="name" required placeholder="例: 豚足のコンフィ"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:6px 0;">
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">レシピメモ（季節アレンジなど）</label>
+    <textarea name="notes" rows="2" placeholder="例: 夏は旬野菜を追加"
+      style="width:100%; background:transparent; border:none; border-bottom:1px solid #444; color:var(--text); font-size:0.95rem; outline:none; resize:none; padding:6px 0;">{{ tmpl.notes if tmpl and tmpl.notes else '' }}</textarea>
+  </div>
+
+  <div class="card" style="padding:16px;">
+    <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">食材リスト（量は1バッチの目安）</p>
+    <div style="display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; margin-bottom:6px;">
+      <span style="color:var(--muted); font-size:0.72rem; padding:0 4px;">食材名</span>
+      <span style="color:var(--muted); font-size:0.72rem; text-align:right;">量</span>
+      <span style="color:var(--muted); font-size:0.72rem; text-align:center;">単位</span>
+      <span style="color:var(--muted); font-size:0.72rem; text-align:center;">カテゴリ</span>
+      <span></span>
+    </div>
+    <div id="ingList">
+      {% if tmpl %}
+        {% for ing in tmpl.ingredients %}
+        <div class="ing-row" style="display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; align-items:center; margin-bottom:8px;">
+          <input type="text" name="ing_name" value="{{ ing.name }}"
+            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%;">
+          <input type="number" name="ing_amount" value="{{ ing.default_amount }}" step="0.001"
+            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%; text-align:right;" inputmode="decimal">
+          <select name="ing_unit" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; width:100%;">
+            {% for u in units %}<option value="{{ u }}" {% if u == ing.unit %}selected{% endif %}>{{ u }}</option>{% endfor %}
+          </select>
+          <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; width:100%;">
+            {% for c in categories %}<option value="{{ c }}" {% if c == ing.category %}selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select>
+          <button type="button" onclick="this.closest('.ing-row').remove()"
+            style="background:none; border:none; color:#666; font-size:1.1rem; cursor:pointer; padding:4px;">✕</button>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <button type="button" onclick="addRow()"
+      style="width:100%; padding:12px; background:transparent; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.95rem; cursor:pointer; margin-top:8px;">
+      ＋ 食材を追加
+    </button>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="font-size:1.2rem; padding:20px;">
+    {% if tmpl %}保存して計算画面へ →{% else %}レシピを登録 →{% endif %}
+  </button>
+
+  {% if tmpl %}
+  <form method="post" action="/batch/template/{{ tmpl.id }}/delete"
+    onsubmit="return confirm('「{{ tmpl.name }}」を削除しますか？')">
+    <button type="submit" class="btn btn-ghost" style="color:#e94560; border-color:#e94560; margin-top:8px;">このレシピを削除</button>
+  </form>
+  {% endif %}
+</form>
+
+<a href="/batch" class="btn btn-ghost">← もどる</a>
+
+<script>
+const UNITS = {{ units | tojson }};
+const CATS = {{ categories | tojson }};
+function addRow() {
+  const unitOpts = UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
+  const catOpts  = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  div.style = 'display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; align-items:center; margin-bottom:8px;';
+  div.innerHTML = `
+    <input type="text" name="ing_name" placeholder="食材名"
+      style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.85rem; outline:none; width:100%;">
+    <input type="number" name="ing_amount" placeholder="量" step="0.001"
+      style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.85rem; outline:none; width:100%; text-align:right;" inputmode="decimal">
+    <select name="ing_unit" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.8rem; outline:none; width:100%;">${unitOpts}</select>
+    <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.8rem; outline:none; width:100%;">${catOpts}</select>
+    <button type="button" onclick="this.closest('.ing-row').remove()"
+      style="background:none; border:none; color:#666; font-size:1.1rem; cursor:pointer; padding:4px;">✕</button>
+  `;
+  document.getElementById('ingList').appendChild(div);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ batch.name }}</h1>
+
+<!-- ===== 全コスト込み価格（固定費設定がある場合） ===== -->
+{% if full_price %}
+<div class="card" style="padding:20px; border:2px solid var(--accent);">
+  <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">全コスト込み推奨価格（固定費+利益目標）</div>
+  <div style="font-size:3.2rem; font-weight:800; color:var(--accent); line-height:1; margin-bottom:8px;">
+    ¥{{ "{:,.0f}".format(full_price.recommended) }}
+    <span style="font-size:1rem; color:var(--muted); font-weight:400;">/kg</span>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:0.8rem; margin-bottom:10px;">
+    <div style="text-align:center;">
+      <div style="color:var(--muted);">食材原価</div>
+      <div style="font-weight:700;">¥{{ "{:,.0f}".format(batch.cost_per_kg) }}/kg</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="color:var(--muted);">固定費按分</div>
+      <div style="font-weight:700; color:var(--yellow);">¥{{ "{:,.0f}".format(full_price.overhead_per_kg) }}/kg</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="color:var(--muted);">利益</div>
+      <div style="font-weight:700; color:var(--green);">¥{{ "{:,.0f}".format(full_price.profit_per_kg) }}/kg</div>
+    </div>
+  </div>
+
+  <!-- テイクアウト/イートイン -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+    <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">🥡 テイクアウト</div>
+      <div style="font-size:1.5rem; font-weight:700;">¥{{ "{:,.0f}".format(full_price.takeout_per_item) }}</div>
+      <div style="color:var(--muted); font-size:0.72rem;">/ {{ mc.takeout_unit_weight }}kg (包材込)</div>
+    </div>
+    <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">🍽 イートイン</div>
+      <div style="font-size:1.5rem; font-weight:700; color:var(--green);">¥{{ "{:,.0f}".format(full_price.eatin_per_item) }}</div>
+      <div style="color:var(--muted); font-size:0.72rem;">× {{ mc.eatin_multiplier }}</div>
+    </div>
+  </div>
+  <div style="color:var(--muted); font-size:0.7rem; margin-top:6px; text-align:center;">
+    ⚙ 設定: <a href="/settings" style="color:var(--accent);">固定費・経営設定</a>より変更可
+  </div>
+</div>
+
+<!-- 食材原価ベース（参考） -->
+<div class="card" style="padding:14px; opacity:0.7;">
+  <div style="color:var(--muted); font-size:0.72rem; margin-bottom:6px;">食材原価のみベース（参考）</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:0.85rem; text-align:center;">
+    <div><div style="color:var(--muted); font-size:0.7rem;">推奨価格</div><div style="font-weight:700;">¥{{ "{:,.0f}".format(batch.recommended_price) }}/kg</div></div>
+    <div><div style="color:var(--muted); font-size:0.7rem;">原価率</div><div style="font-weight:700; color:var(--yellow);">{{ (100 - batch.gross_margin) | int }}%</div></div>
+    <div><div style="color:var(--muted); font-size:0.7rem;">粗利率</div><div style="font-weight:700; color:var(--green);">{{ batch.gross_margin }}%</div></div>
+  </div>
+</div>
+
+{% else %}
+<!-- 固定費設定なし：従来の表示 -->
+<div class="card" style="text-align:center; padding:28px;">
+  <div style="color:var(--muted); font-size:0.85rem; margin-bottom:6px;">推奨販売価格（食材原価ベース）</div>
+  <div style="font-size:3.5rem; font-weight:800; color:var(--accent); line-height:1;">
+    ¥{{ "{:,.0f}".format(batch.recommended_price) }}
+  </div>
+  <div style="color:var(--muted); font-size:1rem; margin-top:4px;">円 / kg &nbsp;|&nbsp; {{ tier_label }}</div>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+  <div class="card" style="text-align:center; padding:16px;">
+    <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">食材総原価</div>
+    <div style="font-size:1.4rem; font-weight:700;">¥{{ "{:,.0f}".format(batch.total_cost) }}</div>
+  </div>
+  <div class="card" style="text-align:center; padding:16px;">
+    <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">原価/kg</div>
+    <div style="font-size:1.4rem; font-weight:700; color:var(--yellow);">¥{{ "{:,.0f}".format(batch.cost_per_kg) }}</div>
+  </div>
+  <div class="card" style="text-align:center; padding:16px;">
+    <div style="color:var(--muted); font-size:0.75rem; margin-bottom:4px;">粗利率</div>
+    <div style="font-size:1.4rem; font-weight:700; color:var(--green);">{{ batch.gross_margin }}%</div>
+  </div>
+</div>
+<div class="card" style="text-align:center; color:var(--muted); font-size:0.82rem; padding:12px;">
+  💡 <a href="/settings" style="color:var(--accent);">固定費・経営設定</a>を登録すると全コスト込み価格が表示されます
+</div>
+{% endif %}
+
+<!-- 小分け価格 -->
+<div class="card" style="padding:20px;">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">🏷 小分け販売価格</p>
+
+  <!-- 使用する推奨価格の選択 -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+    <button type="button" id="btnFull" onclick="switchBase('full')"
+      style="padding:10px; border-radius:10px; border:2px solid var(--accent); background:rgba(233,69,96,0.15); color:var(--text); font-size:0.82rem; font-weight:700; cursor:pointer;">
+      全コスト込み<br><span style="font-size:0.7rem; color:var(--muted); font-weight:400;">固定費+利益込み</span>
+    </button>
+    <button type="button" id="btnIngr" onclick="switchBase('ingr')"
+      style="padding:10px; border-radius:10px; border:2px solid #444; background:transparent; color:var(--muted); font-size:0.82rem; font-weight:700; cursor:pointer;">
+      食材原価ベース<br><span style="font-size:0.7rem; font-weight:400;">参考値</span>
+    </button>
+  </div>
+
+  <!-- 小分け量入力 -->
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+    <span style="color:var(--muted); font-size:0.9rem; white-space:nowrap;">1個あたり</span>
+    <input type="number" id="portionWeight"
+      value="{{ batch.portion_weight if batch.portion_weight else 100 }}"
+      step="1" min="1" inputmode="decimal"
+      oninput="calcPortion()"
+      style="flex:1; background:#1e2a44; border:2px solid var(--accent); border-radius:8px; color:var(--text); padding:10px; font-size:1.6rem; font-weight:700; outline:none; text-align:right;">
+    <select id="portionUnit" onchange="calcPortion()"
+      style="background:#1e2a44; border:2px solid var(--accent); border-radius:8px; color:var(--text); padding:10px; font-size:1.1rem; outline:none; font-weight:700;">
+      <option value="g" {% if batch.portion_unit == 'g' %}selected{% endif %}>g</option>
+      <option value="kg" {% if batch.portion_unit == 'kg' %}selected{% endif %}>kg</option>
+    </select>
+  </div>
+
+  <!-- 結果 -->
+  <div style="background:#1a1a2e; border-radius:12px; padding:16px; text-align:center;">
+    <div style="color:var(--muted); font-size:0.8rem; margin-bottom:4px;">1個あたり推奨販売価格</div>
+    <div id="portionPrice" style="font-size:3rem; font-weight:800; color:var(--accent); line-height:1;">¥—</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:12px; font-size:0.82rem;">
+      <div style="text-align:center;">
+        <div style="color:var(--muted);">個数</div>
+        <div id="portionCount" style="font-weight:700; font-size:1.1rem;">—個</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:var(--muted);">1個原価</div>
+        <div id="portionCost" style="font-weight:700; color:var(--yellow); font-size:1.1rem;">¥—</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:var(--muted);">1個粗利</div>
+        <div id="portionProfit" style="font-weight:700; color:var(--green); font-size:1.1rem;">¥—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 食材内訳 -->
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">食材内訳</p>
+  {% for cat, ings in by_category.items() %}
+  <div style="margin-bottom:12px;">
+    <div style="color:var(--accent); font-size:0.72rem; font-weight:700; margin-bottom:4px;">{{ cat }}</div>
+    {% for ing in ings %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #2a2a4a; font-size:0.85rem;">
+      <span style="flex:2;">{{ ing.name }}</span>
+      <span style="color:var(--muted); flex:1.4; text-align:right; font-size:0.8rem;">
+        {{ ing.amount }}{{ ing.unit }}
+        × ¥{{ "{:,.0f}".format(ing.unit_price) }}/{{ ing.price_unit if ing.price_unit else ing.unit }}
+      </span>
+      <span style="font-weight:700; flex:0.9; text-align:right;">¥{{ "{:,.0f}".format(ing.subtotal) }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  <div style="text-align:right; padding-top:8px; font-size:1rem; font-weight:700; border-top:1px solid #444;">
+    食材合計: ¥{{ "{:,.0f}".format(batch.total_cost) }}
+  </div>
+</div>
+
+{% if batch.notes %}
+<div class="card" style="color:var(--muted); font-size:0.85rem;">📝 {{ batch.notes }}</div>
+{% endif %}
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+  <a href="/batch/new/{% if batch.template_id %}{{ batch.template_id }}{% endif %}" class="btn btn-secondary" style="padding:16px; font-size:0.95rem;">再計算</a>
+  <form method="post" action="/batch/{{ batch.id }}/delete" style="margin:0;">
+    <button type="submit" class="btn btn-ghost" style="width:100%; padding:16px; font-size:0.95rem;">削除</button>
+  </form>
+</div>
+
+<a href="/batch" class="btn btn-ghost">← レシピ一覧</a>
+<a href="/" class="btn btn-ghost">ホーム</a>
+
+<script>
+const PRICE_FULL = {{ full_price.recommended if full_price else 'null' }};
+const PRICE_INGR = {{ batch.recommended_price }};
+const COST_PER_KG = {{ batch.cost_per_kg }};
+const FULL_COST_PER_KG = {{ (batch.cost_per_kg + full_price.overhead_per_kg) if full_price else batch.cost_per_kg }};
+const FINISHED_KG = {{ batch.finished_weight }};
+
+let currentBase = PRICE_FULL ? 'full' : 'ingr';
+
+function switchBase(mode) {
+  currentBase = mode;
+  document.getElementById('btnFull').style.cssText = mode==='full'
+    ? 'padding:10px;border-radius:10px;border:2px solid var(--accent);background:rgba(233,69,96,0.15);color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;'
+    : 'padding:10px;border-radius:10px;border:2px solid #444;background:transparent;color:var(--muted);font-size:0.82rem;font-weight:700;cursor:pointer;';
+  document.getElementById('btnIngr').style.cssText = mode==='ingr'
+    ? 'padding:10px;border-radius:10px;border:2px solid var(--accent);background:rgba(233,69,96,0.15);color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;'
+    : 'padding:10px;border-radius:10px;border:2px solid #444;background:transparent;color:var(--muted);font-size:0.82rem;font-weight:700;cursor:pointer;';
+  calcPortion();
+}
+
+function calcPortion() {
+  const w = parseFloat(document.getElementById('portionWeight').value) || 0;
+  const unit = document.getElementById('portionUnit').value;
+  if (w <= 0) return;
+
+  const portionKg = unit === 'g' ? w / 1000 : w;
+  const basePrice = (currentBase === 'full' && PRICE_FULL) ? PRICE_FULL : PRICE_INGR;
+  const baseCost  = (currentBase === 'full' && PRICE_FULL) ? FULL_COST_PER_KG : COST_PER_KG;
+
+  const pricePerPortion = basePrice * portionKg;
+  const costPerPortion  = baseCost  * portionKg;
+  const profitPerPortion = pricePerPortion - costPerPortion;
+  const count = Math.floor(FINISHED_KG / portionKg);
+
+  document.getElementById('portionPrice').textContent  = '¥' + Math.round(pricePerPortion).toLocaleString();
+  document.getElementById('portionCount').textContent  = count + '個';
+  document.getElementById('portionCost').textContent   = '¥' + Math.round(costPerPortion).toLocaleString();
+  document.getElementById('portionProfit').textContent = '¥' + Math.round(profitPerPortion).toLocaleString();
+}
+
+// 初期化
+if (!PRICE_FULL) {
+  document.getElementById('btnFull').disabled = true;
+  document.getElementById('btnFull').style.opacity = '0.3';
+  currentBase = 'ingr';
+  switchBase('ingr');
+} else {
+  switchBase('full');
+}
+calcPortion();
+</script>
+{% endblock %}

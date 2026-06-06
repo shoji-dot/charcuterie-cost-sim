@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>📋 レシピ計算</h1>
+
+<a href="/batch/template/new" class="btn btn-secondary" style="font-size:1.1rem; padding:18px; margin-bottom:4px;">
+  ＋ 新規レシピを追加
+</a>
+<a href="/batch/new" class="btn btn-ghost" style="padding:12px; font-size:0.9rem; margin-bottom:16px;">
+  レシピ指定なしで計算
+</a>
+
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">レシピ一覧 <span style="float:right;">タップで計算 &nbsp; ✏ で編集 &nbsp; ✕ で削除</span></p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+    {% for t in recipe_templates %}
+    <div style="position:relative; background:#1e2a44; border-radius:12px; border:1px solid #2a3a5a;">
+      <a href="/batch/new/{{ t.id }}"
+        style="display:block; padding:14px 36px 14px 12px; text-decoration:none; color:var(--text); font-size:0.95rem; font-weight:600; text-align:center;">
+        {{ t.name }}
+      </a>
+      <div style="position:absolute; top:4px; right:4px; display:flex; gap:2px;">
+        <a href="/batch/template/{{ t.id }}/edit"
+          style="color:#888; font-size:0.8rem; text-decoration:none; padding:4px;">✏</a>
+        <form method="post" action="/batch/template/{{ t.id }}/delete" style="margin:0;"
+          onsubmit="return confirm('「{{ t.name }}」を削除しますか？')">
+          <button type="submit" style="background:none; border:none; color:#666; font-size:0.85rem; cursor:pointer; padding:4px;">✕</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if batches %}
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">計算履歴</p>
+  {% for b in batches %}
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2a2a4a;">
+    <a href="/batch/{{ b.id }}" style="color:var(--text); text-decoration:none; flex:1;">
+      <div style="font-size:1rem; font-weight:600;">{{ b.name }}</div>
+      <div style="color:var(--muted); font-size:0.78rem; margin-top:2px;">
+        ¥{{ "{:,.0f}".format(b.recommended_price) }}/kg &nbsp;|&nbsp;
+        {{ "高粗利" if b.customer_tier == "premium" else ("標準粗利" if b.customer_tier == "standard" else "カスタム粗利") }}
+      </div>
+    </a>
+    <form method="post" action="/batch/{{ b.id }}/delete" style="margin:0;">
+      <button type="submit" style="background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;padding:6px;">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<a href="/" class="btn btn-ghost">← ホーム</a>
+{% endblock %}

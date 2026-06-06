@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ recipe_name if recipe_name else "計算結果" }}</h1>
+
+<!-- メイン指標 -->
+<div class="card" style="text-align:center; padding:28px;">
+  <div style="color:var(--muted); font-size:0.85rem; margin-bottom:6px;">推奨販売価格</div>
+  <div style="font-size:3.5rem; font-weight:800; color:var(--accent); line-height:1;">
+    ¥{{ "{:,.0f}".format(result.recommended_price) }}
+  </div>
+  <div style="color:var(--muted); font-size:1rem; margin-top:4px;">円 / kg &nbsp;|&nbsp; {{ tier_label }}</div>
+</div>
+
+<!-- サブ指標 -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+  <div class="card" style="text-align:center;">
+    <div style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">歩留まり</div>
+    <div style="font-size:2.2rem; font-weight:700; color:var(--yellow);">{{ result.yield_rate }}%</div>
+  </div>
+  <div class="card" style="text-align:center;">
+    <div style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">粗利率</div>
+    <div style="font-size:2.2rem; font-weight:700; color:var(--green);">{{ result.gross_margin }}%</div>
+  </div>
+</div>
+
+<div class="card" style="text-align:center;">
+  <div style="color:var(--muted); font-size:0.8rem; margin-bottom:6px;">完成品原価</div>
+  <div style="font-size:2.4rem; font-weight:700;">¥{{ "{:,.0f}".format(result.cost_per_kg) }}<span style="font-size:1rem; color:var(--muted);">/kg</span></div>
+</div>
+
+<!-- 入力サマリー -->
+<div class="card" style="font-size:0.9rem; color:var(--muted); line-height:1.8;">
+  原料: <strong style="color:var(--text);">{{ input.raw_weight }}kg</strong> ／
+  仕入値: <strong style="color:var(--text);">¥{{ "{:,.0f}".format(input.raw_price) }}</strong> ／
+  完成: <strong style="color:var(--text);">{{ input.finished_weight }}kg</strong>
+</div>
+
+{% if not recipe_name %}
+<!-- 保存フォーム -->
+<form method="post" action="/save">
+  <input type="hidden" name="raw_weight" value="{{ input.raw_weight }}">
+  <input type="hidden" name="raw_price" value="{{ input.raw_price }}">
+  <input type="hidden" name="finished_weight" value="{{ input.finished_weight }}">
+  <input type="hidden" name="customer_tier" value="{{ input.customer_tier }}">
+  <div class="card" style="display:flex; gap:10px; align-items:center; padding:14px 20px;">
+    <input type="text" name="name" required placeholder="レシピ名（例: ハム）"
+      style="flex:1; background:transparent; border:none; border-bottom:1px solid #444; color:var(--text); font-size:1.1rem; outline:none; padding:6px 0;">
+    <button type="submit" class="btn btn-secondary" style="width:auto; padding:12px 20px; font-size:1rem; margin:0;">
+      保存
+    </button>
+  </div>
+</form>
+{% endif %}
+
+<a href="/calc" class="btn btn-primary" style="margin-top:4px;">← 再計算</a>
+<a href="/" class="btn btn-ghost">ホームへ</a>
+{% endblock %}

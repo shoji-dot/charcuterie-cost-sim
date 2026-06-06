@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>🐷 1頭を登録</h1>
+
+{% if error %}
+<div class="card" style="border-left:4px solid var(--accent); color:var(--accent);">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/pig/new">
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">名前（例: 6月 黒豚）</label>
+    <input type="text" name="name" required placeholder="例: 6月 黒豚"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:8px 0;">
+  </div>
+
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">枝肉重量 (kg)</label>
+    <input type="number" name="carcass_weight" inputmode="decimal" step="0.1" min="1" required
+      placeholder="例: 80.0"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.5rem; font-weight:700; outline:none; padding:8px 0; text-align:right;">
+  </div>
+
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">仕入れ総額 (円)</label>
+    <input type="number" name="purchase_price" inputmode="numeric" step="1" min="1" required
+      placeholder="例: 120000"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.5rem; font-weight:700; outline:none; padding:8px 0; text-align:right;">
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="font-size:1.4rem; padding:24px;">
+    登録して部位を追加 →
+  </button>
+</form>
+
+<a href="/pig" class="btn btn-ghost">← もどる</a>
+{% endblock %}

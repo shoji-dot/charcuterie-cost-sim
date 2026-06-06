@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>🐷 {{ pig.name }}</h1>
+
+<!-- 全体収支サマリー -->
+<div class="card" style="padding:20px;">
+  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">全体収支</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+    <div style="text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem;">仕入れ総額</div>
+      <div style="font-size:1.4rem; font-weight:700;">¥{{ "{:,.0f}".format(summary.total_cost) }}</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem;">売上目標合計</div>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--green);">¥{{ "{:,.0f}".format(summary.total_revenue) }}</div>
+    </div>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+    <div style="text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem;">粗利</div>
+      <div style="font-size:1.2rem; font-weight:700; color:{% if summary.gross_profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
+        ¥{{ "{:,.0f}".format(summary.gross_profit) }}
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem;">粗利率</div>
+      <div style="font-size:1.2rem; font-weight:700; color:var(--yellow);">{{ summary.margin }}%</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="color:var(--muted); font-size:0.75rem;">未割当</div>
+      <div style="font-size:1.2rem; font-weight:700; color:{% if summary.unallocated > 0 %}var(--yellow){% else %}var(--muted){% endif %};">
+        {{ summary.unallocated }}kg
+      </div>
+    </div>
+  </div>
+  <div style="color:var(--muted); font-size:0.75rem; text-align:center; margin-top:10px;">
+    枝肉単価 ¥{{ "{:,.0f}".format(summary.carcass_unit_price) }}/kg &nbsp;|&nbsp;
+    {{ summary.allocated_weight }}kg / {{ pig.carcass_weight }}kg 割当済
+  </div>
+</div>
+
+<!-- 部位リスト -->
+{% if pig.cuts %}
+<div class="card" style="padding:16px;">
+  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:10px;">部位一覧</p>
+  {% for cut in pig.cuts %}
+  <div style="padding:12px 0; border-bottom:1px solid #2a2a4a;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="flex:1;">
+        <span style="font-size:1.1rem; font-weight:700;">{{ cut.name }}</span>
+        <span style="color:var(--muted); font-size:0.8rem; margin-left:8px;">{{ "高粗利" if cut.customer_tier == "premium" else "標準粗利" }}</span>
+      </div>
+      <form method="post" action="/pig/{{ pig.id }}/cut/{{ cut.id }}/delete" style="margin:0;">
+        <button type="submit" style="background:none;border:none;color:#555;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>
+      </form>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-top:8px;">
+      <div style="text-align:center;">
+        <div style="color:var(--muted); font-size:0.7rem;">歩留</div>
+        <div style="font-size:1rem; font-weight:700; color:var(--yellow);">{{ cut.yield_rate }}%</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:var(--muted); font-size:0.7rem;">原価/kg</div>
+        <div style="font-size:1rem; font-weight:700;">¥{{ "{:,.0f}".format(cut.cost_per_kg) }}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:var(--muted); font-size:0.7rem;">推奨価格/kg</div>
+        <div style="font-size:1rem; font-weight:700; color:var(--accent);">¥{{ "{:,.0f}".format(cut.recommended_price) }}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:var(--muted); font-size:0.7rem;">売上目標</div>
+        <div style="font-size:1rem; font-weight:700; color:var(--green);">¥{{ "{:,.0f}".format(cut.target_revenue) }}</div>
+      </div>
+    </div>
+    <div style="color:var(--muted); font-size:0.75rem; margin-top:4px;">
+      原料{{ cut.raw_weight }}kg → 完成{{ cut.finished_weight }}kg
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- 部位追加フォーム -->
+<div class="card" style="padding:20px;">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:14px;">部位を追加</p>
+  <form method="post" action="/pig/{{ pig.id }}/cut">
+
+    <!-- 部位名（プリセット + 直接入力） -->
+    <div style="margin-bottom:14px;">
+      <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">部位名</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+        {% for p in presets %}
+        <button type="button" class="preset-btn"
+          style="padding:8px 14px; border-radius:20px; border:1px solid #444; background:transparent; color:var(--text); font-size:0.9rem; cursor:pointer;"
+          onclick="document.getElementById('cut_name').value='{{ p }}'">{{ p }}</button>
+        {% endfor %}
+      </div>
+      <input type="text" id="cut_name" name="name" required placeholder="または直接入力"
+        style="width:100%; background:transparent; border:none; border-bottom:1px solid #444; color:var(--text); font-size:1.2rem; outline:none; padding:6px 0;">
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+      <div>
+        <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:4px;">原料重量 (kg)</label>
+        <input type="number" name="raw_weight" inputmode="decimal" step="0.1" min="0.1" required placeholder="例: 8.0"
+          style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+      </div>
+      <div>
+        <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:4px;">完成重量 (kg)</label>
+        <input type="number" name="finished_weight" inputmode="decimal" step="0.1" min="0.1" required placeholder="例: 6.0"
+          style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+      </div>
+    </div>
+
+    <!-- 購買層 -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;">
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="cp">
+        <div class="tier-btn" data-for="cp"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:1rem; font-weight:700;">
+          📈 高粗利<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">粗利75%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="standard" required style="display:none;" id="cs">
+        <div class="tier-btn" data-for="cs"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:1rem; font-weight:700;">
+          📊 標準粗利<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">粗利65%</span>
+        </div>
+      </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="padding:18px; font-size:1.2rem;">
+      追加する ＋
+    </button>
+  </form>
+</div>
+
+<a href="/pig" class="btn btn-ghost">← 1頭一覧</a>
+<a href="/" class="btn btn-ghost">ホーム</a>
+
+<script>
+  document.querySelectorAll('input[name="customer_tier"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.tier-btn').forEach(btn => {
+        btn.style.border = '2px solid #333';
+        btn.style.background = 'transparent';
+      });
+      const sel = document.querySelector(`.tier-btn[data-for="${radio.id}"]`);
+      sel.style.border = '2px solid var(--accent)';
+      sel.style.background = 'rgba(233,69,96,0.15)';
+    });
+  });
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.style.background = 'transparent'; b.style.borderColor = '#444'; b.style.color = 'var(--text)';
+      });
+      btn.style.background = 'var(--accent)'; btn.style.borderColor = 'var(--accent)'; btn.style.color = '#fff';
+    });
+  });
+</script>
+{% endblock %}

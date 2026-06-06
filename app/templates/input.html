@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>原料を入力</h1>
+
+{% if error %}
+<div class="card" style="border-left:4px solid var(--accent); color:var(--accent);">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="/calc">
+  <!-- 原料重量 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">原料重量 (kg)</label>
+    <input type="number" name="raw_weight" inputmode="decimal" step="0.1" min="0.1" required
+      placeholder="例: 50.0"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.5rem; font-weight:700; outline:none; padding:8px 0; text-align:right;">
+  </div>
+
+  <!-- 原料価格 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">原料価格 (円)</label>
+    <input type="number" name="raw_price" inputmode="numeric" step="1" min="1" required
+      placeholder="例: 60000"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.5rem; font-weight:700; outline:none; padding:8px 0; text-align:right;">
+  </div>
+
+  <!-- 完成重量 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:8px;">完成重量 (kg)</label>
+    <input type="number" name="finished_weight" inputmode="decimal" step="0.1" min="0.1" required
+      placeholder="例: 36.0"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.5rem; font-weight:700; outline:none; padding:8px 0; text-align:right;">
+  </div>
+
+  <!-- 粗利設定 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.85rem; display:block; margin-bottom:12px;">粗利設定</label>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="t_premium">
+        <div class="tier-btn" data-for="t_premium"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.95rem; font-weight:700;">
+          📈 高粗利<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">粗利75%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="standard" required style="display:none;" id="t_standard">
+        <div class="tier-btn" data-for="t_standard"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.95rem; font-weight:700;">
+          📊 標準粗利<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">粗利65%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="custom" style="display:none;" id="t_custom">
+        <div class="tier-btn" data-for="t_custom"
+          style="padding:14px; border-radius:12px; text-align:center; border:2px solid #333; font-size:0.95rem; font-weight:700;">
+          ✏️ カスタム<br><span style="font-size:0.7rem; font-weight:400; color:var(--muted);">任意%</span>
+        </div>
+      </label>
+    </div>
+    <!-- カスタム粗利入力欄 -->
+    <div id="customRateBlock" style="display:none; margin-top:12px; padding:12px; background:#1a1a2e; border-radius:10px;">
+      <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:8px;">目標粗利率 (%)</label>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input type="number" name="custom_gross_margin" id="customGmInput"
+          min="1" max="99" step="1" placeholder="例: 70"
+          style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.2rem; font-weight:700; outline:none; padding:6px 0; text-align:right;">
+        <span style="color:var(--muted); font-size:1.3rem;">%</span>
+      </div>
+      <div style="color:var(--muted); font-size:0.75rem; margin-top:4px;">原価率 = 100% - 粗利率</div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="font-size:1.4rem; padding:24px;">
+    計算する →
+  </button>
+</form>
+
+<a href="/" class="btn btn-ghost">← もどる</a>
+
+<script>
+  document.querySelectorAll('input[name="customer_tier"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.tier-btn').forEach(btn => {
+        btn.style.border = '2px solid #333';
+        btn.style.background = 'transparent';
+      });
+      const sel = document.querySelector(`.tier-btn[data-for="${radio.id}"]`);
+      sel.style.border = '2px solid var(--accent)';
+      sel.style.background = 'rgba(233,69,96,0.15)';
+      const block = document.getElementById('customRateBlock');
+      const inp = document.getElementById('customGmInput');
+      if (radio.value === 'custom') {
+        block.style.display = 'block';
+        inp.required = true;
+      } else {
+        block.style.display = 'none';
+        inp.required = false;
+        inp.value = '';
+      }
+    });
+  });
+</script>
+{% endblock %}

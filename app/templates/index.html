@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>🥩 原価シミュレーター</h1>
+
+{% if saved %}
+<div class="card" style="border-left:4px solid var(--green); color:var(--green); font-size:1rem;">
+  「{{ saved }}」を保存しました
+</div>
+{% endif %}
+
+<!-- メインアクション -->
+<a href="/batch" class="btn btn-primary" style="font-size:1.5rem; padding:26px;">
+  📋 レシピで計算
+</a>
+
+<a href="/pig" class="btn btn-secondary" style="font-size:1.2rem; padding:20px;">
+  🐷 1頭まるごと管理
+</a>
+
+<!-- 設定バナー（固定費未設定の場合に促す） -->
+{% if not has_settings %}
+<a href="/settings" style="display:block; background:#1e2a44; border:1px dashed #e94560; border-radius:14px; padding:14px 16px; text-decoration:none; margin-bottom:12px;">
+  <div style="color:var(--accent); font-size:0.85rem; font-weight:700;">⚙ 固定費・経営設定が未登録です</div>
+  <div style="color:var(--muted); font-size:0.78rem; margin-top:4px;">家賃・人件費・光熱費を登録すると、全コスト込みの正確な販売価格が計算できます →</div>
+</a>
+{% else %}
+<a href="/settings" style="display:block; background:#1e2a44; border:1px solid #2a3a5a; border-radius:14px; padding:12px 16px; text-decoration:none; margin-bottom:12px;">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span style="color:var(--muted); font-size:0.82rem;">⚙ 経営設定（{{ settings_summary.year }}年{{ settings_summary.month }}月）</span>
+    <span style="color:var(--yellow); font-size:0.85rem; font-weight:700;">固定費 ¥{{ "{:,.0f}".format(settings_summary.total_fixed) }} / ¥{{ "{:,.0f}".format(settings_summary.fixed_per_kg) }}per kg →</span>
+  </div>
+</a>
+{% endif %}
+
+<a href="/calc" class="btn btn-ghost" style="font-size:0.95rem; padding:14px;">
+  ＋ シンプル単品計算
+</a>
+
+{% if recipes %}
+<div class="card">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">単品計算の保存履歴</p>
+  {% for r in recipes %}
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2a2a4a;">
+    <a href="/recipe/{{ r.id }}" style="color:var(--text); text-decoration:none; flex:1;">
+      <div style="font-size:1rem; font-weight:600;">{{ r.name }}</div>
+      <div style="color:var(--muted); font-size:0.78rem; margin-top:2px;">
+        ¥{{ "{:,.0f}".format(r.recommended_price) }}/kg &nbsp;|&nbsp;
+        {{ "高粗利" if r.customer_tier == "premium" else "標準粗利" }}
+      </div>
+    </a>
+    <form method="post" action="/delete/{{ r.id }}" style="margin:0;">
+      <button type="submit" style="background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;padding:6px;">✕</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
