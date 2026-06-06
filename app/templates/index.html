@@ -20,30 +20,33 @@
 <!-- 月次サマリー -->
 {% if monthly_stats %}
 <div class="card" style="padding:16px;">
-  <p style="color:var(--muted); font-size:0.78rem; margin-bottom:10px;">
-    📊 {{ monthly_stats.year }}年{{ monthly_stats.month }}月の仕込み実績
-  </p>
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <p style="color:var(--muted); font-size:0.78rem; margin:0;">
+      📊 {{ monthly_stats.year }}年{{ monthly_stats.month }}月の仕込み実績
+    </p>
+    <span style="color:var(--muted); font-size:0.72rem;">{{ monthly_stats.batch_count }}回 / {{ monthly_stats.total_kg }}kg</span>
+  </div>
+
+  <!-- 3枚メインカード -->
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
     <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
-      <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">仕込み回数</div>
-      <div style="font-size:1.8rem; font-weight:800; color:var(--text);">{{ monthly_stats.batch_count }}<span style="font-size:0.9rem; font-weight:400; color:var(--muted);"> 回</span></div>
+      <div style="color:var(--muted); font-size:0.65rem; margin-bottom:6px;">食材原価合計</div>
+      <div style="font-size:1.1rem; font-weight:800; color:var(--yellow);">¥{{ "{:,.0f}".format(monthly_stats.total_cost) }}</div>
     </div>
     <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
-      <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">総生産量</div>
-      <div style="font-size:1.8rem; font-weight:800; color:var(--text);">{{ monthly_stats.total_kg }}<span style="font-size:0.9rem; font-weight:400; color:var(--muted);"> kg</span></div>
-    </div>
-    <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
-      <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">食材原価合計</div>
-      <div style="font-size:1.3rem; font-weight:800; color:var(--yellow);">¥{{ "{:,.0f}".format(monthly_stats.total_cost) }}</div>
-    </div>
-    <div style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center;">
-      <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">粗利額合計</div>
-      <div style="font-size:1.3rem; font-weight:800; color:{% if monthly_stats.gross_profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
+      <div style="color:var(--muted); font-size:0.65rem; margin-bottom:6px;">推定粗利合計</div>
+      <div style="font-size:1.1rem; font-weight:800; color:{% if monthly_stats.gross_profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
         ¥{{ "{:,.0f}".format(monthly_stats.gross_profit) }}
       </div>
     </div>
+    <a href="/batch/{{ monthly_stats.top_cost_id }}" style="background:#1a1a2e; border-radius:10px; padding:12px; text-align:center; text-decoration:none; display:block;">
+      <div style="color:var(--muted); font-size:0.65rem; margin-bottom:6px;">最高原価レシピ</div>
+      <div style="font-size:0.78rem; font-weight:700; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ monthly_stats.top_cost_name }}</div>
+      <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">¥{{ "{:,.0f}".format(monthly_stats.top_cost_per_kg) }}/kg</div>
+    </a>
   </div>
-  <div style="text-align:center; margin-top:10px; color:var(--muted); font-size:0.78rem;">
+
+  <div style="text-align:center; color:var(--muted); font-size:0.78rem;">
     平均粗利率 <span style="color:var(--green); font-weight:700; font-size:1rem;">{{ monthly_stats.avg_gross_margin }}%</span>
     &nbsp;|&nbsp;
     <a href="/batch/ranking" style="color:var(--accent); font-size:0.78rem;">ランキングを見る →</a>

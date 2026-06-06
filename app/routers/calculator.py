@@ -46,6 +46,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
             b.recommended_price * b.finished_weight - b.total_cost
             for b in monthly_batches
         )
+        top_batch = max(monthly_batches, key=lambda b: b.cost_per_kg)
         monthly_stats = {
             "year": now.year, "month": now.month,
             "batch_count": len(monthly_batches),
@@ -53,6 +54,9 @@ async def index(request: Request, db: Session = Depends(get_db)):
             "total_kg": round(total_kg, 1),
             "avg_gross_margin": round(avg_gm, 1),
             "gross_profit": round(gross_profit),
+            "top_cost_name": top_batch.name,
+            "top_cost_per_kg": round(top_batch.cost_per_kg),
+            "top_cost_id": top_batch.id,
         }
 
     recent_batches = (
