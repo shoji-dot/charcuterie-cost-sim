@@ -196,6 +196,62 @@
   </div>
 </div>
 
+<!-- 原価推移グラフ -->
+{% if cost_history and cost_history | length > 1 %}
+<div class="card" style="padding:16px;">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">📈 原価推移（{{ batch.name }}）</p>
+  {% set costs = cost_history | map(attribute='cost_per_kg') | list %}
+  {% set min_cost = costs | min %}
+  {% set max_cost = costs | max %}
+  {% set range_cost = (max_cost - min_cost) if max_cost != min_cost else 1 %}
+  {% set n = cost_history | length %}
+  {% set W = 320 %}
+  {% set H = 120 %}
+  {% set pad_x = 10 %}
+  {% set pad_y = 16 %}
+  <svg viewBox="0 0 {{ W }} {{ H + 24 }}" style="width:100%; max-width:{{ W }}px; display:block; margin:0 auto; overflow:visible;">
+    <!-- グリッドライン -->
+    {% for i in range(3) %}
+    {% set gy = pad_y + (H - pad_y * 2) * i // 2 %}
+    <line x1="{{ pad_x }}" y1="{{ gy }}" x2="{{ W - pad_x }}" y2="{{ gy }}"
+      stroke="#2a2a4a" stroke-width="1"/>
+    {% endfor %}
+    <!-- ライン -->
+    {% set points = [] %}
+    {% for item in cost_history %}
+      {% set xi = pad_x + (W - pad_x * 2) * loop.index0 // ([n - 1, 1] | max) %}
+      {% set yi = pad_y + (H - pad_y * 2) * (1 - (item.cost_per_kg - min_cost) / range_cost) %}
+      {% if points.append((xi, yi)) %}{% endif %}
+    {% endfor %}
+    <polyline
+      points="{% for p in points %}{{ p[0] }},{{ p[1] }} {% endfor %}"
+      fill="none" stroke="#4a6fa5" stroke-width="2" stroke-linejoin="round"/>
+    <!-- データポイント -->
+    {% for item in cost_history %}
+      {% set p = points[loop.index0] %}
+      <circle cx="{{ p[0] }}" cy="{{ p[1] }}" r="{{ 5 if item.is_current else 3 }}"
+        fill="{{ 'var(--accent)' if item.is_current else '#4a6fa5' }}"
+        stroke="{{ '#fff' if item.is_current else 'none' }}" stroke-width="1.5"/>
+      <!-- 日付ラベル（最初・最後・現在のみ） -->
+      {% if loop.first or loop.last or item.is_current %}
+      <text x="{{ p[0] }}" y="{{ H + 18 }}" text-anchor="middle"
+        font-size="9" fill="#888">{{ item.date }}</text>
+      {% endif %}
+      <!-- 現在バッチの値ラベル -->
+      {% if item.is_current %}
+      <text x="{{ p[0] }}" y="{{ p[1] - 8 }}" text-anchor="middle"
+        font-size="10" fill="var(--accent)" font-weight="bold">¥{{ "{:,}".format(item.cost_per_kg) }}</text>
+      {% endif %}
+    {% endfor %}
+  </svg>
+  <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:0.72rem; margin-top:4px;">
+    <span>最小 ¥{{ "{:,}".format(min_cost) }}/kg</span>
+    <span>{{ n }}回分</span>
+    <span>最大 ¥{{ "{:,}".format(max_cost) }}/kg</span>
+  </div>
+</div>
+{% endif %}
+
 <!-- 食材内訳 -->
 <div class="card">
   <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">食材内訳</p>

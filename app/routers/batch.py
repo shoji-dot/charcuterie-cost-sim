@@ -449,6 +449,24 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
                     "prev_name": prev_batch.name,
                 }
 
+    # 原価推移：同テンプレートの全バッチ（古い順）
+    cost_history = []
+    if batch.template_id:
+        history_batches = (
+            db.query(models.Batch)
+            .filter(models.Batch.template_id == batch.template_id)
+            .order_by(models.Batch.created_at.asc())
+            .all()
+        )
+        cost_history = [
+            {
+                "date": b.created_at.strftime("%m/%d"),
+                "cost_per_kg": round(b.cost_per_kg),
+                "is_current": b.id == batch.id,
+            }
+            for b in history_batches
+        ]
+
     return templates.TemplateResponse(
         request, "batch_result.html",
         {
@@ -458,6 +476,7 @@ async def batch_detail(request: Request, batch_id: int, db: Session = Depends(ge
             "full_price": full_price,
             "mc": mc,
             "cost_alert": cost_alert,
+            "cost_history": cost_history,
         },
     )
 
