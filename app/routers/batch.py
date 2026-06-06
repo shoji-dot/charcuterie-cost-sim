@@ -227,6 +227,116 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/batch/{batch.id}", status_code=303)
 
 
+
+@router.get("/{batch_id}/edit", response_class=HTMLResponse)
+async def batch_edit_form(request: Request, batch_id: int, db: Session = Depends(get_db)):
+    batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+    if not batch:
+        return RedirectResponse("/batch", status_code=303)
+    masters = db.query(models.IngredientMaster).all()
+    masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
+    return templates.TemplateResponse(
+        request, "batch_edit.html",
+        {"batch": batch, "categories": CATEGORIES, "units": UNITS, "masters_map": masters_map},
+    )
+
+
+@router.post("/{batch_id}/edit")
+async def batch_edit_save(request: Request, batch_id: int, db: Session = Depends(get_db)):
+    batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
+    if not batch:
+        return RedirectResponse("/batch", status_code=303)
+
+    form = await request.form()
+    try:
+        name = form.get("batch_name", "").strip() or "名称未設定"
+        finished_weight = float(form.get("finished_weight") or 0)
+        if finished_weight <= 0:
+            raise ValueError("完成量は0より大きい値を入力してください")
+        customer_tier = form.get("customer_tier", "standard")
+        custom_gm_raw = form.get("custom_gross_margin", "")
+        custom_gross_margin = float(custom_gm_raw) if custom_gm_raw else None
+        notes = form.get("notes", "")
+        portion_weight_raw = form.get("portion_weight", "")
+        portion_weight = float(portion_weight_raw) if portion_weight_raw else None
+        portion_unit = form.get("portion_unit", "g")
+        waste_weight_raw = form.get("waste_weight", "")
+        waste_weight = float(waste_weight_raw) if waste_weight_raw else None
+    except ValueError as e:
+        masters = db.query(models.IngredientMaster).all()
+        masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
+        return templates.TemplateResponse(
+            request, "batch_edit.html",
+            {"batch": batch, "categories": CATEGORIES, "units": UNITS,
+             "masters_map": masters_map, "error": f"入力値エラー: {e}"},
+        )
+
+    names = form.getlist("ing_name")
+    amounts = form.getlist("ing_amount")
+    units_list = form.getlist("ing_unit")
+    unit_prices = form.getlist("ing_unit_price")
+    price_units = form.getlist("ing_price_unit")
+    cats = form.getlist("ing_category")
+
+    ingredients = []
+    unit_errors = []
+    total_cost = 0.0
+    for n, a, u, p, pu, c in zip(names, amounts, units_list, unit_prices, price_units, cats):
+        if not n or not a or not p:
+            continue
+        try:
+            amount = float(a)
+            price = float(p)
+        except ValueError:
+            continue
+        price_unit = pu if pu else "kg"
+        if not _units_compatible(u, price_unit):
+            unit_errors.append(f"{n}: {u} → {price_unit} は変換不可")
+            continue
+        converted = convert_to_price_unit(amount, u, price_unit)
+        subtotal = converted * price
+        total_cost += subtotal
+        ingredients.append({
+            "name": n, "amount": amount, "unit": u,
+            "unit_price": price, "price_per": 1.0,
+            "price_unit": price_unit,
+            "subtotal": subtotal, "category": c,
+        })
+
+    if unit_errors:
+        masters = db.query(models.IngredientMaster).all()
+        masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
+        return templates.TemplateResponse(
+            request, "batch_edit.html",
+            {"batch": batch, "categories": CATEGORIES, "units": UNITS,
+             "masters_map": masters_map, "error": "単位エラー: " + " / ".join(unit_errors)},
+        )
+
+    result = calc_batch(total_cost, finished_weight, customer_tier, custom_gross_margin)
+
+    batch.name = name
+    batch.finished_weight = finished_weight
+    batch.customer_tier = customer_tier
+    batch.custom_rate = result.pop("custom_rate")
+    batch.notes = notes
+    batch.waste_weight = waste_weight
+    batch.portion_weight = portion_weight
+    batch.portion_unit = portion_unit
+    batch.total_cost = result["total_cost"]
+    batch.cost_per_kg = result["cost_per_kg"]
+    batch.recommended_price = result["recommended_price"]
+    batch.gross_margin = result["gross_margin"]
+
+    for old in list(batch.ingredients):
+        db.delete(old)
+    db.flush()
+    for ing in ingredients:
+        db.add(models.BatchIngredient(batch_id=batch.id, **ing))
+
+    db.commit()
+    return RedirectResponse(f"/batch/{batch_id}", status_code=303)
+
+
 @router.get("/{batch_id}", response_class=HTMLResponse)
 async def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db)):
     batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()

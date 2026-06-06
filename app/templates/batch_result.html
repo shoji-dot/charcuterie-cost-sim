@@ -210,8 +210,9 @@
 <div class="card" style="color:var(--muted); font-size:0.85rem;">📝 {{ batch.notes }}</div>
 {% endif %}
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-  <a href="/batch/new/{% if batch.template_id %}{{ batch.template_id }}{% endif %}" class="btn btn-secondary" style="padding:16px; font-size:0.95rem;">再計算</a>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+  <a href="/batch/new/{% if batch.template_id %}{{ batch.template_id }}{% endif %}" class="btn btn-secondary" style="padding:16px; font-size:0.95rem; text-align:center;">再計算</a>
+  <a href="/batch/{{ batch.id }}/edit" class="btn btn-ghost" style="padding:16px; font-size:0.95rem; text-align:center;">✏ 編集</a>
   <form method="post" action="/batch/{{ batch.id }}/delete" style="margin:0;">
     <button type="submit" class="btn btn-ghost" style="width:100%; padding:16px; font-size:0.95rem;">削除</button>
   </form>

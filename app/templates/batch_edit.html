@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>✏ 編集: {{ batch.name }}</h1>
+
+{% if error %}
+<div class="card" style="border-left:4px solid var(--accent); color:var(--accent); font-size:0.85rem; padding:12px 16px;">
+  {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/batch/{{ batch.id }}/edit" id="batchForm">
+
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">仕込み名</label>
+    <input type="text" name="batch_name" required
+      value="{{ batch.name }}"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.4rem; font-weight:700; outline:none; padding:6px 0;">
+  </div>
+
+  <!-- 食材テーブル -->
+  <div class="card" style="padding:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <p style="color:var(--muted); font-size:0.85rem;">食材・コスト</p>
+      <a href="/ingredients" style="color:var(--accent); font-size:0.75rem; text-decoration:none;">食材マスター ›</a>
+    </div>
+    <div style="display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; margin-bottom:4px; padding:0 2px;">
+      <span style="color:var(--muted); font-size:0.68rem;">食材名</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:right;">使用量</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:center;">単位</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:right;">単価(円)</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:center;">/ 単位</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:center;">区分</span>
+      <span></span>
+    </div>
+
+    <div id="ingList">
+      {% for ing in batch.ingredients %}
+      <div class="ing-row" style="display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; align-items:center; margin-bottom:6px;">
+        <input type="text" name="ing_name" value="{{ ing.name }}"
+          onblur="applyMaster(this)"
+          style="background:#1e2a44; border:1px solid #333; border-radius:7px; color:var(--text); padding:7px 6px; font-size:0.82rem; outline:none; width:100%;">
+        <input type="number" name="ing_amount" value="{{ ing.amount }}"
+          step="0.001" min="0" inputmode="decimal"
+          style="background:#1e2a44; border:1px solid #333; border-radius:7px; color:var(--text); padding:7px 4px; font-size:0.82rem; outline:none; width:100%; text-align:right;"
+          oninput="updateTotal()">
+        <select name="ing_unit" onchange="updateTotal()" style="background:#1e2a44; border:1px solid #333; border-radius:7px; color:var(--text); padding:7px 2px; font-size:0.75rem; outline:none; width:100%;">
+          {% for u in units %}<option value="{{ u }}" {% if u == ing.unit %}selected{% endif %}>{{ u }}</option>{% endfor %}
+        </select>
+        <input type="number" name="ing_unit_price" value="{{ ing.unit_price | int }}"
+          placeholder="単価" step="1" min="0" inputmode="numeric"
+          style="background:#1e2a44; border:1px solid var(--green); border-radius:7px; color:var(--text); padding:7px 4px; font-size:0.82rem; outline:none; width:100%; text-align:right;"
+          oninput="updateTotal()">
+        <select name="ing_price_unit" onchange="updateTotal()" style="background:#1e2a44; border:1px solid #e94560; border-radius:7px; color:var(--accent); padding:7px 2px; font-size:0.75rem; outline:none; width:100%; font-weight:700;">
+          {% for u in units %}<option value="{{ u }}" {% if u == (ing.price_unit or ing.unit) %}selected{% endif %}>{{ u }}</option>{% endfor %}
+        </select>
+        <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:7px; color:var(--text); padding:7px 2px; font-size:0.72rem; outline:none; width:100%;">
+          {% for cat in categories %}<option value="{{ cat }}" {% if cat == ing.category %}selected{% endif %}>{{ cat }}</option>{% endfor %}
+        </select>
+        <button type="button" onclick="this.closest('.ing-row').remove(); updateTotal()"
+          style="background:none; border:none; color:#666; font-size:1rem; cursor:pointer; padding:3px;">✕</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="costPreview" style="text-align:right; color:var(--muted); font-size:0.85rem; margin:6px 0 10px;">
+      食材合計: <span id="totalCost" style="color:var(--text); font-weight:700;">¥0</span>
+    </div>
+
+    <button type="button" onclick="addRow()"
+      style="width:100%; padding:11px; background:transparent; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.9rem; cursor:pointer;">
+      ＋ 食材を追加
+    </button>
+  </div>
+
+  <!-- 完成量 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:8px;">完成量 (kg)</label>
+    <input type="number" name="finished_weight" inputmode="decimal" step="0.1" min="0.1" required
+      value="{{ batch.finished_weight }}"
+      style="width:100%; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2.2rem; font-weight:700; outline:none; padding:6px 0; text-align:right;">
+  </div>
+
+  <!-- 粗利設定 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:10px;">粗利設定</label>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      {% set cur_tier = batch.customer_tier %}
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="premium" required style="display:none;" id="t_p"
+          {% if cur_tier == 'premium' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_p"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'premium' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'premium' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          📈 高粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利75%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="standard" required style="display:none;" id="t_s"
+          {% if cur_tier == 'standard' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_s"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'standard' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'standard' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          📊 標準粗利<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">粗利65%</span>
+        </div>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="radio" name="customer_tier" value="custom" style="display:none;" id="t_c"
+          {% if cur_tier == 'custom' %}checked{% endif %}>
+        <div class="tier-btn" data-for="t_c"
+          style="padding:12px; border-radius:12px; text-align:center; border:2px solid {% if cur_tier == 'custom' %}var(--accent){% else %}#333{% endif %}; background:{% if cur_tier == 'custom' %}rgba(233,69,96,0.15){% else %}transparent{% endif %}; font-size:0.9rem; font-weight:700;">
+          ✏️ カスタム<br><span style="font-size:0.68rem; font-weight:400; color:var(--muted);">任意%</span>
+        </div>
+      </label>
+    </div>
+    <div id="customRateBlock" style="display:{% if cur_tier == 'custom' %}block{% else %}none{% endif %}; margin-top:10px; padding:10px; background:#1a1a2e; border-radius:10px;">
+      <label style="color:var(--muted); font-size:0.78rem; display:block; margin-bottom:6px;">目標粗利率 (%)</label>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input type="number" name="custom_gross_margin" id="customGmInput"
+          min="1" max="99" step="1" placeholder="例: 70"
+          value="{% if cur_tier == 'custom' %}{{ batch.gross_margin | int }}{% endif %}"
+          {% if cur_tier == 'custom' %}required{% endif %}
+          style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:2rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+        <span style="color:var(--muted); font-size:1.2rem;">%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 廃棄ロス -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:8px;">
+      廃棄ロス <span style="color:#555; font-size:0.75rem;">（任意）</span>
+    </label>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <input type="number" name="waste_weight" inputmode="decimal" step="0.01" min="0"
+        value="{{ batch.waste_weight if batch.waste_weight else '' }}"
+        placeholder="例: 0.2"
+        style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+      <span style="color:var(--muted); font-size:1.1rem; flex-shrink:0;">kg</span>
+    </div>
+  </div>
+
+  <!-- 小分け設定 -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:10px;">
+      小分け販売の設定 <span style="color:#555; font-size:0.75rem;">（任意）</span>
+    </label>
+    <div style="display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box;">
+      <span style="color:var(--muted); font-size:0.9rem; white-space:nowrap; flex-shrink:0;">1個あたり</span>
+      <input type="number" name="portion_weight" inputmode="decimal" step="1" min="1"
+        value="{{ batch.portion_weight | int if batch.portion_weight else '' }}"
+        placeholder="例: 100"
+        style="flex:1; min-width:0; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px; font-size:1.3rem; font-weight:700; outline:none; text-align:right; box-sizing:border-box;">
+      <select name="portion_unit"
+        style="flex-shrink:0; width:64px; background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:10px 4px; font-size:1rem; outline:none;">
+        <option value="g" {% if batch.portion_unit == 'g' %}selected{% endif %}>g</option>
+        <option value="kg" {% if batch.portion_unit == 'kg' %}selected{% endif %}>kg</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- アレンジメモ -->
+  <div class="card">
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:6px;">アレンジメモ</label>
+    <textarea name="notes" rows="2" placeholder="例: 夏バージョン：バジル追加"
+      style="width:100%; background:transparent; border:none; border-bottom:1px solid #444; color:var(--text); font-size:0.95rem; outline:none; resize:none; padding:6px 0;">{{ batch.notes or '' }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="font-size:1.3rem; padding:22px;">
+    保存して再計算 →
+  </button>
+</form>
+
+<a href="/batch/{{ batch.id }}" class="btn btn-ghost">← キャンセル</a>
+
+<script>
+const UNITS = {{ units | tojson }};
+const CATS = {{ categories | tojson }};
+const MASTERS = {{ (masters_map or {}) | tojson }};
+
+function applyMaster(nameInput) {
+  const row = nameInput.closest('.ing-row');
+  if (!row) return;
+  const m = MASTERS[nameInput.value.trim()];
+  if (!m) return;
+  const priceInput = row.querySelector('[name=ing_unit_price]');
+  const puSel = row.querySelector('[name=ing_price_unit]');
+  const catSel = row.querySelector('[name=ing_category]');
+  if (priceInput && !priceInput.value) {
+    priceInput.value = m.unit_price;
+    priceInput.style.borderColor = 'var(--green)';
+  }
+  if (puSel) puSel.value = m.price_unit;
+  if (catSel) catSel.value = m.category;
+  updateTotal();
+}
+
+function convertToPriceUnit(amount, fromUnit, toUnit) {
+  if (fromUnit === toUnit) return amount;
+  if (fromUnit === 'kg' && toUnit === 'g')  return amount * 1000;
+  if (fromUnit === 'g'  && toUnit === 'kg') return amount / 1000;
+  if (fromUnit === 'L'  && toUnit === 'ml') return amount * 1000;
+  if (fromUnit === 'ml' && toUnit === 'L')  return amount / 1000;
+  return amount;
+}
+
+function addRow(name='', amount='', unit='kg', price='', priceUnit='kg', cat='その他') {
+  const unitOpts = UNITS.map(u => `<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('');
+  const puOpts   = UNITS.map(u => `<option value="${u}" ${u===priceUnit?'selected':''}>${u}</option>`).join('');
+  const catOpts  = CATS.map(c => `<option value="${c}" ${c===cat?'selected':''}>${c}</option>`).join('');
+  const div = document.createElement('div');
+  div.className = 'ing-row';
+  div.style = 'display:grid; grid-template-columns:2fr 0.8fr 0.5fr 0.9fr 0.9fr 0.7fr 24px; gap:3px; align-items:center; margin-bottom:6px;';
+  div.innerHTML = `
+    <input type="text" name="ing_name" value="${name}" placeholder="食材名"
+      onblur="applyMaster(this)"
+      style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 6px;font-size:0.82rem;outline:none;width:100%;">
+    <input type="number" name="ing_amount" value="${amount}" step="0.001" min="0" inputmode="decimal"
+      style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 4px;font-size:0.82rem;outline:none;width:100%;text-align:right;"
+      oninput="updateTotal()">
+    <select name="ing_unit" onchange="updateTotal()" style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 2px;font-size:0.75rem;outline:none;width:100%;">${unitOpts}</select>
+    <input type="number" name="ing_unit_price" value="${price}" placeholder="単価" step="1" min="0" inputmode="numeric"
+      style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 4px;font-size:0.82rem;outline:none;width:100%;text-align:right;"
+      oninput="updateTotal()">
+    <select name="ing_price_unit" onchange="updateTotal()" style="background:#1e2a44;border:1px solid #e94560;border-radius:7px;color:#e94560;padding:7px 2px;font-size:0.75rem;outline:none;width:100%;font-weight:700;">${puOpts}</select>
+    <select name="ing_category" style="background:#1e2a44;border:1px solid #333;border-radius:7px;color:#eaeaea;padding:7px 2px;font-size:0.72rem;outline:none;width:100%;">${catOpts}</select>
+    <button type="button" onclick="this.closest('.ing-row').remove(); updateTotal()"
+      style="background:none;border:none;color:#666;font-size:1rem;cursor:pointer;padding:3px;">✕</button>
+  `;
+  document.getElementById('ingList').appendChild(div);
+  div.querySelectorAll('input,select').forEach(i => i.addEventListener('input', updateTotal));
+}
+
+function updateTotal() {
+  let total = 0;
+  document.querySelectorAll('.ing-row').forEach(row => {
+    const a  = parseFloat(row.querySelector('[name=ing_amount]')?.value) || 0;
+    const u  = row.querySelector('[name=ing_unit]')?.value || 'kg';
+    const p  = parseFloat(row.querySelector('[name=ing_unit_price]')?.value) || 0;
+    const pu = row.querySelector('[name=ing_price_unit]')?.value || 'kg';
+    total += convertToPriceUnit(a, u, pu) * p;
+  });
+  document.getElementById('totalCost').textContent = '¥' + Math.round(total).toLocaleString();
+}
+
+document.querySelectorAll('.ing-row input').forEach(i => i.addEventListener('input', updateTotal));
+document.querySelectorAll('.ing-row [name=ing_name]').forEach(i => i.addEventListener('blur', () => applyMaster(i)));
+updateTotal();
+
+document.querySelectorAll('input[name="customer_tier"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('.tier-btn').forEach(b => { b.style.border='2px solid #333'; b.style.background='transparent'; });
+    const s = document.querySelector(`.tier-btn[data-for="${r.id}"]`);
+    s.style.border='2px solid var(--accent)'; s.style.background='rgba(233,69,96,0.15)';
+    const block = document.getElementById('customRateBlock');
+    const inp = document.getElementById('customGmInput');
+    if (r.value === 'custom') {
+      block.style.display = 'block';
+      inp.required = true;
+    } else {
+      block.style.display = 'none';
+      inp.required = false;
+      inp.value = '';
+    }
+  });
+});
+</script>
+{% endblock %}
