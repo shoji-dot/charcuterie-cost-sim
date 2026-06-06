@@ -106,6 +106,44 @@
 </div>
 {% endif %}
 
+<!-- 逆引き計算 -->
+<div class="card" style="padding:20px;">
+  <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">🔄 逆引き計算</p>
+  <div style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">目標販売価格を入力→必要な粗利率を計算</div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+    <input type="number" id="targetPrice"
+      placeholder="例: 980"
+      step="10" min="0" inputmode="decimal"
+      oninput="calcReverse()"
+      style="flex:1; background:#1e2a44; border:2px solid var(--green); border-radius:8px; color:var(--text); padding:10px; font-size:1.6rem; font-weight:700; outline:none; text-align:right;">
+    <span style="color:var(--muted); font-size:0.9rem; white-space:nowrap;">円 /</span>
+    <select id="targetUnit" onchange="calcReverse()"
+      style="background:#1e2a44; border:2px solid var(--green); border-radius:8px; color:var(--text); padding:10px; font-size:1rem; outline:none; font-weight:700;">
+      <option value="100g">100g</option>
+      <option value="kg">kg</option>
+    </select>
+  </div>
+
+  <div id="reverseResult" style="display:none; background:#1a1a2e; border-radius:12px; padding:16px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center; font-size:0.82rem;">
+      <div>
+        <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">粗利率</div>
+        <div id="revMargin" style="font-size:1.4rem; font-weight:800;">—</div>
+      </div>
+      <div>
+        <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">利益/kg</div>
+        <div id="revProfit" style="font-size:1.4rem; font-weight:800; color:var(--green);">—</div>
+      </div>
+      <div>
+        <div style="color:var(--muted); font-size:0.7rem; margin-bottom:4px;">採算</div>
+        <div id="revJudge" style="font-size:1.1rem; font-weight:800;">—</div>
+      </div>
+    </div>
+    <div id="revNote" style="color:var(--muted); font-size:0.72rem; margin-top:10px; text-align:center;"></div>
+  </div>
+</div>
+
 <!-- 小分け価格 -->
 <div class="card" style="padding:20px;">
   <p style="color:var(--muted); font-size:0.85rem; margin-bottom:12px;">🏷 小分け販売価格</p>
@@ -259,6 +297,45 @@ function calcPortion() {
   document.getElementById('portionCount').textContent  = count + '個';
   document.getElementById('portionCost').textContent   = '¥' + Math.round(costPerPortion).toLocaleString();
   document.getElementById('portionProfit').textContent = '¥' + Math.round(profitPerPortion).toLocaleString();
+}
+
+function calcReverse() {
+  const val = parseFloat(document.getElementById('targetPrice').value);
+  const unit = document.getElementById('targetUnit').value;
+  const result = document.getElementById('reverseResult');
+  if (!val || val <= 0) { result.style.display = 'none'; return; }
+
+  const pricePerKg = unit === '100g' ? val * 10 : val;
+  const margin = (pricePerKg - COST_PER_KG) / pricePerKg * 100;
+  const profitPerKg = pricePerKg - COST_PER_KG;
+
+  result.style.display = 'block';
+
+  const marginEl = document.getElementById('revMargin');
+  const profitEl = document.getElementById('revProfit');
+  const judgeEl = document.getElementById('revJudge');
+  const noteEl = document.getElementById('revNote');
+
+  marginEl.textContent = margin.toFixed(1) + '%';
+  profitEl.textContent = (profitPerKg >= 0 ? '+' : '') + '¥' + Math.round(profitPerKg).toLocaleString();
+
+  if (margin >= 65) {
+    marginEl.style.color = 'var(--green)';
+    judgeEl.textContent = '✅ 黒字';
+    judgeEl.style.color = 'var(--green)';
+    noteEl.textContent = '目標粗利率を達成しています';
+  } else if (margin >= 0) {
+    marginEl.style.color = 'var(--yellow)';
+    judgeEl.textContent = '⚠️ 低粗利';
+    judgeEl.style.color = 'var(--yellow)';
+    noteEl.textContent = '黒字ですが粗利率65%を下回ります';
+  } else {
+    marginEl.style.color = 'var(--accent)';
+    profitEl.style.color = 'var(--accent)';
+    judgeEl.textContent = '❌ 赤字';
+    judgeEl.style.color = 'var(--accent)';
+    noteEl.textContent = '原価を下回る価格設定です';
+  }
 }
 
 // 初期化
