@@ -77,6 +77,21 @@
         <div style="font-size:1rem; font-weight:700; color:var(--green);">¥{{ "{:,.0f}".format(cut.target_revenue) }}</div>
       </div>
     </div>
+    {% set bench = benchmarks.get(cut.name) %}
+    {% if bench %}
+    {% set diff = cut.yield_rate - bench %}
+    <div style="display:flex; align-items:center; gap:8px; margin-top:6px; font-size:0.75rem;">
+      <span style="color:var(--muted);">歩留ベンチ:</span>
+      <span style="color:var(--muted);">標準 {{ bench }}%</span>
+      <span style="font-weight:700;
+        color:{% if diff >= 0 %}var(--green){% elif diff >= -5 %}var(--yellow){% else %}var(--accent){% endif %};">
+        {% if diff >= 0 %}▲ +{% else %}▼ {% endif %}{{ "%.1f"|format(diff) }}%
+      </span>
+      <span style="color:var(--muted); font-size:0.7rem;">
+        {% if diff >= 0 %}優良{% elif diff >= -5 %}やや低い{% else %}要改善{% endif %}
+      </span>
+    </div>
+    {% endif %}
     <div style="color:var(--muted); font-size:0.75rem; margin-top:4px;">
       原料{{ cut.raw_weight }}kg → 完成{{ cut.finished_weight }}kg
     </div>

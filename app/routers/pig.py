@@ -12,6 +12,18 @@ templates = Jinja2Templates(directory="app/templates")
 
 PRESET_CUTS = ["ヒレ", "ロース", "肩ロース", "バラ", "モモ", "カタ", "スネ", "端肉"]
 
+# 部位別標準歩留り（シャルキュトリー業界標準値）
+YIELD_BENCHMARKS = {
+    "ヒレ":  90.0,
+    "ロース": 80.0,
+    "肩ロース": 75.0,
+    "バラ":  85.0,
+    "モモ":  80.0,
+    "カタ":  72.0,
+    "スネ":  65.0,
+    "端肉":  60.0,
+}
+
 
 def calc_cut(carcass_weight: float, purchase_price: float,
              raw_weight: float, finished_weight: float,
@@ -92,7 +104,7 @@ async def pig_detail(request: Request, pig_id: int, db: Session = Depends(get_db
     summary = pig_summary(pig)
     return templates.TemplateResponse(
         request, "pig_detail.html",
-        {"pig": pig, "summary": summary, "presets": PRESET_CUTS, "error": None},
+        {"pig": pig, "summary": summary, "presets": PRESET_CUTS, "benchmarks": YIELD_BENCHMARKS, "error": None},
     )
 
 
