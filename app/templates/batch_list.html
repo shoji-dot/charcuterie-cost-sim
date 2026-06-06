@@ -109,6 +109,30 @@
     </form>
   </div>
   {% endfor %}
+
+  {% if total_pages > 1 %}
+  <div style="display:flex; justify-content:center; align-items:center; gap:12px; padding-top:14px;">
+    {% if page > 1 %}
+    <a href="/batch?page={{ page - 1 }}"
+      style="padding:8px 16px; background:#1e2a44; border:1px solid #2a3a5a; border-radius:8px; color:var(--text); text-decoration:none; font-size:0.9rem;">
+      ← 前へ
+    </a>
+    {% else %}
+    <span style="padding:8px 16px; color:#444; font-size:0.9rem;">← 前へ</span>
+    {% endif %}
+
+    <span style="color:var(--muted); font-size:0.82rem;">{{ page }} / {{ total_pages }}ページ（計{{ total }}件）</span>
+
+    {% if page < total_pages %}
+    <a href="/batch?page={{ page + 1 }}"
+      style="padding:8px 16px; background:#1e2a44; border:1px solid #2a3a5a; border-radius:8px; color:var(--text); text-decoration:none; font-size:0.9rem;">
+      次へ →
+    </a>
+    {% else %}
+    <span style="padding:8px 16px; color:#444; font-size:0.9rem;">次へ →</span>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 

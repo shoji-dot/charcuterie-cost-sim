@@ -102,11 +102,20 @@ async def batch_ranking(request: Request, db: Session = Depends(get_db), sort: s
 
 
 @router.get("", response_class=HTMLResponse)
-async def batch_list(request: Request, db: Session = Depends(get_db)):
+async def batch_list(request: Request, db: Session = Depends(get_db), page: int = 1):
     from datetime import date
+    PER_PAGE = 20
     templates_list = db.query(models.RecipeTemplate).order_by(models.RecipeTemplate.id).all()
-    batches = db.query(models.Batch).order_by(models.Batch.created_at.desc()).limit(20).all()
+    total = db.query(models.Batch).count()
+    batches = (
+        db.query(models.Batch)
+        .order_by(models.Batch.created_at.desc())
+        .offset((page - 1) * PER_PAGE)
+        .limit(PER_PAGE)
+        .all()
+    )
     today = date.today()
+    total_pages = (total + PER_PAGE - 1) // PER_PAGE
 
     # 値上げアラートマップ: batch_id -> diff_pct (3%超の場合のみ)
     alert_map = {}
@@ -131,7 +140,8 @@ async def batch_list(request: Request, db: Session = Depends(get_db)):
         request, "batch_list.html",
         {"recipe_templates": templates_list, "batches": batches,
          "now_month": today.month, "now_year": today.year,
-         "alert_map": alert_map},
+         "alert_map": alert_map,
+         "page": page, "total_pages": total_pages, "total": total},
     )
 
 
