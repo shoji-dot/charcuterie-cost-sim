@@ -45,7 +45,8 @@ def convert_to_price_unit(amount: float, from_unit: str, to_unit: str) -> float:
 def get_cost_rate(customer_tier: str, custom_gross_margin: float = None) -> float:
     """customer_tier から原価率を返す。custom の場合は custom_gross_margin (%) から算出。"""
     if customer_tier == "custom" and custom_gross_margin is not None:
-        return 1.0 - (custom_gross_margin / 100.0)
+        gm = max(1.0, min(99.0, float(custom_gross_margin)))  # 1〜99%に強制クランプ
+        return 1.0 - (gm / 100.0)
     return COST_RATE.get(customer_tier, 0.35)
 
 

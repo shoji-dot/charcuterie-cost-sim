@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from app.database import get_db
 from app import models
-from app.calculator import COST_RATE
+from app.calculator import get_cost_rate
 
 router = APIRouter(prefix="/pig")
 templates = Jinja2Templates(directory="app/templates")
@@ -14,12 +14,13 @@ PRESET_CUTS = ["ヒレ", "ロース", "肩ロース", "バラ", "モモ", "カ�
 
 
 def calc_cut(carcass_weight: float, purchase_price: float,
-             raw_weight: float, finished_weight: float, customer_tier: str) -> dict:
+             raw_weight: float, finished_weight: float,
+             customer_tier: str, custom_gross_margin: float = None) -> dict:
     """部位1点の原価計算"""
     unit_cost_rate = raw_weight / carcass_weight
     unit_cost = purchase_price * unit_cost_rate
     cost_per_kg = unit_cost / finished_weight
-    cost_rate = COST_RATE[customer_tier]
+    cost_rate = get_cost_rate(customer_tier, custom_gross_margin)  # C-1修正
     recommended_price = cost_per_kg / cost_rate
     yield_rate = (finished_weight / raw_weight) * 100
     target_revenue = recommended_price * finished_weight
@@ -89,12 +90,7 @@ async def pig_detail(request: Request, pig_id: int, db: Session = Depends(get_db
     summary = pig_summary(pig)
     return templates.TemplateResponse(
         request, "pig_detail.html",
-        {
-            "pig": pig,
-            "summary": summary,
-            "presets": PRESET_CUTS,
-            "error": None,
-        },
+        {"pig": pig, "summary": summary, "presets": PRESET_CUTS, "error": None},
     )
 
 
@@ -112,7 +108,8 @@ async def cut_add(
     if not pig:
         return RedirectResponse("/pig", status_code=303)
 
-    result = calc_cut(pig.carcass_weight, pig.purchase_price, raw_weight, finished_weight, customer_tier)
+    result = calc_cut(pig.carcass_weight, pig.purchase_price,
+                      raw_weight, finished_weight, customer_tier)
     cut = models.Cut(
         pig_id=pig_id, name=name,
         raw_weight=raw_weight, finished_weight=finished_weight, customer_tier=customer_tier,

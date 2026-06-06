@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import Annotated, Optional
 from app.database import get_db
 from app import models
@@ -12,6 +13,24 @@ templates = Jinja2Templates(directory="app/templates")
 
 CATEGORIES = ["肉", "野菜", "調味料", "油脂", "乳製品", "豆・穀物", "その他"]
 UNITS = ["kg", "g", "L", "ml", "個", "枚", "本", "束", "缶"]
+
+# 変換可能な単位グループ（同グループ内のみ変換可能）
+_UNIT_GROUPS = {
+    "kg": "weight", "g": "weight",
+    "L": "volume", "ml": "volume",
+    "個": "count", "枚": "count", "本": "count", "束": "count", "缶": "count",
+}
+
+
+def _units_compatible(from_unit: str, to_unit: str) -> bool:
+    """異種単位（g→L など）の組み合わせを検知"""
+    if from_unit == to_unit:
+        return True
+    g1 = _UNIT_GROUPS.get(from_unit)
+    g2 = _UNIT_GROUPS.get(to_unit)
+    if g1 is None or g2 is None:
+        return True  # 未知単位はスルー
+    return g1 == g2
 
 
 def calc_batch(total_cost: float, finished_weight: float, customer_tier: str,
@@ -78,11 +97,7 @@ async def batch_new_form(request: Request, template_id: int, db: Session = Depen
 async def batch_new_custom(request: Request):
     return templates.TemplateResponse(
         request, "batch_form.html",
-        {
-            "tmpl": None,
-            "categories": CATEGORIES,
-            "units": UNITS,
-        },
+        {"tmpl": None, "categories": CATEGORIES, "units": UNITS},
     )
 
 
@@ -90,17 +105,27 @@ async def batch_new_custom(request: Request):
 async def batch_save(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
 
-    name = form.get("batch_name", "")
-    template_id = form.get("template_id")
-    template_id = int(template_id) if template_id else None
-    finished_weight = float(form.get("finished_weight", 1))
-    customer_tier = form.get("customer_tier", "standard")
-    custom_gm_raw = form.get("custom_gross_margin", "")
-    custom_gross_margin = float(custom_gm_raw) if custom_gm_raw else None
-    notes = form.get("notes", "")
-    portion_weight_raw = form.get("portion_weight", "")
-    portion_weight = float(portion_weight_raw) if portion_weight_raw else None
-    portion_unit = form.get("portion_unit", "g")
+    # --- 入力値取得・型変換（エラーハンドリング付き）---
+    try:
+        name = form.get("batch_name", "").strip() or "名称未設定"
+        template_id = form.get("template_id")
+        template_id = int(template_id) if template_id else None
+        finished_weight = float(form.get("finished_weight") or 0)
+        if finished_weight <= 0:
+            raise ValueError("完成量は0より大きい値を入力してください")
+        customer_tier = form.get("customer_tier", "standard")
+        custom_gm_raw = form.get("custom_gross_margin", "")
+        custom_gross_margin = float(custom_gm_raw) if custom_gm_raw else None
+        notes = form.get("notes", "")
+        portion_weight_raw = form.get("portion_weight", "")
+        portion_weight = float(portion_weight_raw) if portion_weight_raw else None
+        portion_unit = form.get("portion_unit", "g")
+    except ValueError as e:
+        return templates.TemplateResponse(
+            request, "batch_form.html",
+            {"tmpl": None, "categories": CATEGORIES, "units": UNITS,
+             "error": f"入力値エラー: {e}"},
+        )
 
     names = form.getlist("ing_name")
     amounts = form.getlist("ing_amount")
@@ -109,14 +134,22 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
     price_units = form.getlist("ing_price_unit")
     cats = form.getlist("ing_category")
 
+    # --- 食材パース（異種単位チェック付き）---
     ingredients = []
+    unit_errors = []
     total_cost = 0.0
     for n, a, u, p, pu, c in zip(names, amounts, units, unit_prices, price_units, cats):
         if not n or not a or not p:
             continue
-        amount = float(a)
-        price = float(p)
+        try:
+            amount = float(a)
+            price = float(p)
+        except ValueError:
+            continue
         price_unit = pu if pu else "kg"
+        if not _units_compatible(u, price_unit):
+            unit_errors.append(f"{n}: {u} → {price_unit} は変換不可")
+            continue
         converted = convert_to_price_unit(amount, u, price_unit)
         subtotal = converted * price
         total_cost += subtotal
@@ -126,6 +159,15 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
             "price_unit": price_unit,
             "subtotal": subtotal, "category": c,
         })
+
+    if unit_errors:
+        tmpl = db.query(models.RecipeTemplate).filter(
+            models.RecipeTemplate.id == template_id).first() if template_id else None
+        return templates.TemplateResponse(
+            request, "batch_form.html",
+            {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS,
+             "error": "単位エラー: " + " / ".join(unit_errors)},
+        )
 
     result = calc_batch(total_cost, finished_weight, customer_tier, custom_gross_margin)
 
@@ -220,6 +262,21 @@ async def template_edit_save(request: Request, template_id: int, db: Session = D
         return RedirectResponse("/batch", status_code=303)
 
     form = await request.form()
+    new_name = form.get("name", tmpl.name).strip()
+
+    # M-2: 重複名チェック（自分自身は除外）
+    if new_name != tmpl.name:
+        dup = db.query(models.RecipeTemplate).filter(
+            models.RecipeTemplate.name == new_name,
+            models.RecipeTemplate.id != template_id
+        ).first()
+        if dup:
+            return templates.TemplateResponse(
+                request, "template_edit.html",
+                {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS,
+                 "error": f"「{new_name}」は既に存在します"},
+            )
+    tmpl.name = new_name
     tmpl.notes = form.get("notes", "")
 
     for old in tmpl.ingredients:
