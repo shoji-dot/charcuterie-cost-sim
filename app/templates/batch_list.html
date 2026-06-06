@@ -27,6 +27,10 @@
         {{ t.name }}
       </a>
       <div style="position:absolute; top:4px; right:4px; display:flex; gap:2px;">
+        <form method="post" action="/batch/template/{{ t.id }}/duplicate" style="margin:0;"
+          title="複製">
+          <button type="submit" style="background:none; border:none; color:#888; font-size:0.8rem; cursor:pointer; padding:4px;">⎘</button>
+        </form>
         <a href="/batch/template/{{ t.id }}/edit"
           style="color:#888; font-size:0.8rem; text-decoration:none; padding:4px;">✏</a>
         <form method="post" action="/batch/template/{{ t.id }}/delete" style="margin:0;"

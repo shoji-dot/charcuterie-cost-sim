@@ -793,6 +793,43 @@ async def template_new_save(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(f"/batch/new/{tmpl.id}", status_code=303)
 
 
+@router.post("/template/{template_id}/duplicate")
+async def template_duplicate(template_id: int, db: Session = Depends(get_db)):
+    """レシピテンプレートを複製する"""
+    src = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()
+    if not src:
+        return RedirectResponse("/batch", status_code=303)
+
+    # 重複しない名前を生成
+    base_name = src.name + " (コピー)"
+    new_name = base_name
+    count = 1
+    while db.query(models.RecipeTemplate).filter(models.RecipeTemplate.name == new_name).first():
+        count += 1
+        new_name = f"{base_name}{count}"
+
+    new_tmpl = models.RecipeTemplate(
+        name=new_name,
+        notes=src.notes,
+        default_customer_tier=src.default_customer_tier,
+        default_gross_margin=src.default_gross_margin,
+    )
+    db.add(new_tmpl)
+    db.flush()
+
+    for ing in src.ingredients:
+        db.add(models.TemplateIngredient(
+            template_id=new_tmpl.id,
+            name=ing.name,
+            default_amount=ing.default_amount,
+            unit=ing.unit,
+            category=ing.category,
+        ))
+
+    db.commit()
+    return RedirectResponse(f"/batch/template/{new_tmpl.id}/edit", status_code=303)
+
+
 @router.post("/template/{template_id}/delete")
 async def template_delete(template_id: int, db: Session = Depends(get_db)):
     tmpl = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()
