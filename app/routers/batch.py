@@ -81,10 +81,31 @@ async def batch_list(request: Request, db: Session = Depends(get_db)):
     templates_list = db.query(models.RecipeTemplate).order_by(models.RecipeTemplate.id).all()
     batches = db.query(models.Batch).order_by(models.Batch.created_at.desc()).limit(20).all()
     today = date.today()
+
+    # 値上げアラートマップ: batch_id -> diff_pct (3%超の場合のみ)
+    alert_map = {}
+    for b in batches:
+        if b.template_id:
+            prev = (
+                db.query(models.Batch)
+                .filter(
+                    models.Batch.template_id == b.template_id,
+                    models.Batch.id != b.id,
+                    models.Batch.created_at < b.created_at,
+                )
+                .order_by(models.Batch.created_at.desc())
+                .first()
+            )
+            if prev and prev.cost_per_kg > 0:
+                diff_pct = (b.cost_per_kg - prev.cost_per_kg) / prev.cost_per_kg * 100
+                if diff_pct > 3.0:
+                    alert_map[b.id] = round(diff_pct, 1)
+
     return templates.TemplateResponse(
         request, "batch_list.html",
         {"recipe_templates": templates_list, "batches": batches,
-         "now_month": today.month, "now_year": today.year},
+         "now_month": today.month, "now_year": today.year,
+         "alert_map": alert_map},
     )
 
 

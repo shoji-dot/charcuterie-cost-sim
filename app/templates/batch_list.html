@@ -86,7 +86,12 @@
   {% for b in batches %}
   <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2a2a4a;">
     <a href="/batch/{{ b.id }}" style="color:var(--text); text-decoration:none; flex:1;">
-      <div style="font-size:1rem; font-weight:600;">{{ b.name }}</div>
+      <div style="display:flex; align-items:center; gap:8px; font-size:1rem; font-weight:600;">
+          {{ b.name }}
+          {% if b.id in alert_map %}
+          <span style="background:#3a2000; color:#f5a623; font-size:0.7rem; font-weight:700; padding:2px 6px; border-radius:6px; border:1px solid #f5a623; white-space:nowrap;">⚠ +{{ alert_map[b.id] }}%</span>
+          {% endif %}
+        </div>
       <div style="color:var(--muted); font-size:0.78rem; margin-top:2px;">
         ¥{{ "{:,.0f}".format(b.recommended_price) }}/kg &nbsp;|&nbsp;
         {%- if b.customer_tier == "premium" -%}高粗利 (粗利75%)
