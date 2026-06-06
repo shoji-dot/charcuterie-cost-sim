@@ -1,7 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>🏆 利益ランキング</h1>
-<p style="color:var(--muted); font-size:0.82rem; margin-bottom:16px;">粗利額（推奨売上 - 食材原価）の高い順</p>
+
+<!-- 並び替えトグル -->
+<div style="display:flex; gap:8px; margin-bottom:16px;">
+  <a href="/batch/ranking?sort=profit"
+    style="flex:1; text-align:center; padding:10px; border-radius:10px; font-size:0.9rem; font-weight:600; text-decoration:none;
+    {% if sort == 'profit' %}background:var(--green); color:#000;{% else %}background:#1e2a44; color:var(--muted); border:1px solid #2a3a5a;{% endif %}">
+    💰 粗利額順
+  </a>
+  <a href="/batch/ranking?sort=margin"
+    style="flex:1; text-align:center; padding:10px; border-radius:10px; font-size:0.9rem; font-weight:600; text-decoration:none;
+    {% if sort == 'margin' %}background:var(--accent); color:#fff;{% else %}background:#1e2a44; color:var(--muted); border:1px solid #2a3a5a;{% endif %}">
+    📈 粗利率順
+  </a>
+</div>
 
 {% if not ranked %}
 <div class="card" style="text-align:center; color:var(--muted); padding:32px;">
@@ -9,44 +22,48 @@
 </div>
 {% else %}
 <div class="card" style="padding:16px;">
+  <p style="color:var(--muted); font-size:0.75rem; margin-bottom:12px;">レシピ別・全バッチ累計</p>
   {% for item in ranked %}
   {% set rank = loop.index %}
-  <a href="/batch/{{ item.id }}" style="display:block; text-decoration:none; color:var(--text);">
-    <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #2a2a4a;">
+  <div style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid #2a2a4a;">
 
-      <!-- 順位 -->
-      <div style="min-width:36px; text-align:center;">
-        {% if rank == 1 %}
-          <span style="font-size:1.5rem;">🥇</span>
-        {% elif rank == 2 %}
-          <span style="font-size:1.5rem;">🥈</span>
-        {% elif rank == 3 %}
-          <span style="font-size:1.5rem;">🥉</span>
-        {% else %}
-          <span style="font-size:1rem; color:var(--muted); font-weight:700;">{{ rank }}</span>
-        {% endif %}
-      </div>
-
-      <!-- バッチ名 + 日付 -->
-      <div style="flex:1; min-width:0;">
-        <div style="font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          {{ item.name }}
-        </div>
-        <div style="color:var(--muted); font-size:0.72rem; margin-top:2px;">
-          {{ item.created_at.strftime('%Y/%m/%d') }} &nbsp;|&nbsp; {{ item.finished_weight }}kg &nbsp;|&nbsp; 粗利率 {{ item.gross_margin }}%
-        </div>
-      </div>
-
-      <!-- 粗利額 -->
-      <div style="text-align:right; flex-shrink:0;">
-        <div style="font-size:1.2rem; font-weight:800; color:{% if item.gross_profit >= 0 %}var(--green){% else %}var(--accent){% endif %};">
-          {% if item.gross_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(item.gross_profit) }}
-        </div>
-        <div style="color:var(--muted); font-size:0.7rem; margin-top:1px;">粗利額</div>
-      </div>
-
+    <!-- 順位 -->
+    <div style="min-width:32px; text-align:center;">
+      {% if rank == 1 %}
+        <span style="font-size:1.5rem;">🥇</span>
+      {% elif rank == 2 %}
+        <span style="font-size:1.5rem;">🥈</span>
+      {% elif rank == 3 %}
+        <span style="font-size:1.5rem;">🥉</span>
+      {% else %}
+        <span style="font-size:1rem; color:var(--muted); font-weight:700;">{{ rank }}</span>
+      {% endif %}
     </div>
-  </a>
+
+    <!-- レシピ名 + 仕込み回数・総重量 -->
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        {{ item.name }}
+      </div>
+      <div style="color:var(--muted); font-size:0.72rem; margin-top:3px;">
+        {{ item.batch_count }}回仕込み &nbsp;|&nbsp; 計{{ item.total_weight }}kg
+      </div>
+    </div>
+
+    <!-- 粗利額 + 粗利率 -->
+    <div style="text-align:right; flex-shrink:0;">
+      <div style="font-size:1.15rem; font-weight:800; color:{% if sort == 'profit' %}var(--green){% else %}var(--text){% endif %};">
+        {% if item.total_gross_profit >= 0 %}+{% endif %}¥{{ "{:,.0f}".format(item.total_gross_profit) }}
+      </div>
+      <div style="font-size:0.82rem; font-weight:700; color:{% if sort == 'margin' %}var(--accent){% else %}var(--muted){% endif %}; margin-top:2px;">
+        粗利率 {{ item.avg_margin }}%
+      </div>
+      <div style="color:var(--muted); font-size:0.68rem; margin-top:1px;">
+        ¥{{ "{:,.0f}".format(item.profit_per_kg) }}/kg利益
+      </div>
+    </div>
+
+  </div>
   {% endfor %}
 </div>
 {% endif %}

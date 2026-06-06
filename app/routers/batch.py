@@ -52,26 +52,52 @@ def calc_batch(total_cost: float, finished_weight: float, customer_tier: str,
 
 
 @router.get("/ranking", response_class=HTMLResponse)
-async def batch_ranking(request: Request, db: Session = Depends(get_db)):
-    """粗利額ランキング"""
+async def batch_ranking(request: Request, db: Session = Depends(get_db), sort: str = "profit"):
+    """粗利額・粗利率ランキング（レシピ別集計）"""
     batches = db.query(models.Batch).all()
-    ranked = []
+
+    # レシピ名でグループ集計
+    groups: dict = {}
     for b in batches:
-        gross_profit = round(b.recommended_price * b.finished_weight - b.total_cost)
+        key = b.name
+        gross_profit = b.recommended_price * b.finished_weight - b.total_cost
+        if key not in groups:
+            groups[key] = {
+                "name": key,
+                "batch_count": 0,
+                "total_gross_profit": 0.0,
+                "total_weight": 0.0,
+                "total_cost": 0.0,
+                "total_revenue": 0.0,
+                "margin_sum": 0.0,
+            }
+        g = groups[key]
+        g["batch_count"] += 1
+        g["total_gross_profit"] += gross_profit
+        g["total_weight"] += b.finished_weight
+        g["total_cost"] += b.total_cost
+        g["total_revenue"] += b.recommended_price * b.finished_weight
+        g["margin_sum"] += b.gross_margin
+
+    ranked = []
+    for g in groups.values():
+        avg_margin = g["margin_sum"] / g["batch_count"] if g["batch_count"] else 0
+        profit_per_kg = g["total_gross_profit"] / g["total_weight"] if g["total_weight"] else 0
         ranked.append({
-            "id": b.id,
-            "name": b.name,
-            "gross_margin": b.gross_margin,
-            "finished_weight": b.finished_weight,
-            "gross_profit": gross_profit,
-            "cost_per_kg": round(b.cost_per_kg),
-            "recommended_price": round(b.recommended_price),
-            "created_at": b.created_at,
+            "name": g["name"],
+            "batch_count": g["batch_count"],
+            "total_gross_profit": round(g["total_gross_profit"]),
+            "total_weight": round(g["total_weight"], 1),
+            "avg_margin": round(avg_margin, 1),
+            "profit_per_kg": round(profit_per_kg),
         })
-    ranked.sort(key=lambda x: x["gross_profit"], reverse=True)
+
+    sort_key = "avg_margin" if sort == "margin" else "total_gross_profit"
+    ranked.sort(key=lambda x: x[sort_key], reverse=True)
+
     return templates.TemplateResponse(
         request, "batch_ranking.html",
-        {"ranked": ranked},
+        {"ranked": ranked, "sort": sort},
     )
 
 
