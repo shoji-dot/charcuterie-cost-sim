@@ -137,6 +137,34 @@ async def cut_add(
     return RedirectResponse(f"/pig/{pig_id}", status_code=303)
 
 
+@router.post("/{pig_id}/cut/{cut_id}/edit")
+async def cut_edit(
+    request: Request,
+    pig_id: int,
+    cut_id: int,
+    customer_tier: Annotated[str, Form()],
+    custom_gross_margin: Annotated[float | None, Form()] = None,
+    db: Session = Depends(get_db),
+):
+    """部位の粗利設定を更新して再計算"""
+    pig = db.query(models.WholePig).filter(models.WholePig.id == pig_id).first()
+    cut = db.query(models.Cut).filter(models.Cut.id == cut_id, models.Cut.pig_id == pig_id).first()
+    if not pig or not cut:
+        return RedirectResponse(f"/pig/{pig_id}", status_code=303)
+
+    result = calc_cut(pig.carcass_weight, pig.purchase_price,
+                      cut.raw_weight, cut.finished_weight,
+                      customer_tier, custom_gross_margin)
+    cut.customer_tier = customer_tier
+    cut.custom_gross_margin = custom_gross_margin if customer_tier == "custom" else None
+    cut.gross_margin = result["gross_margin"]
+    cut.recommended_price = result["recommended_price"]
+    cut.target_revenue = result["target_revenue"]
+    cut.cost_per_kg = result["cost_per_kg"]
+    db.commit()
+    return RedirectResponse(f"/pig/{pig_id}", status_code=303)
+
+
 @router.post("/{pig_id}/cut/{cut_id}/delete")
 async def cut_delete(pig_id: int, cut_id: int, db: Session = Depends(get_db)):
     cut = db.query(models.Cut).filter(models.Cut.id == cut_id, models.Cut.pig_id == pig_id).first()

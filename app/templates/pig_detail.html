@@ -55,10 +55,55 @@
           {%- endif -%}
         </span>
       </div>
-      <form method="post" action="/pig/{{ pig.id }}/cut/{{ cut.id }}/delete" style="margin:0;">
-        <button type="submit" style="background:none;border:none;color:#555;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>
+      <div style="display:flex; gap:2px;">
+        <button type="button" onclick="toggleEdit('edit-{{ cut.id }}')"
+          style="background:none;border:none;color:#888;font-size:0.9rem;cursor:pointer;padding:4px;" title="粗利を編集">✏</button>
+        <form method="post" action="/pig/{{ pig.id }}/cut/{{ cut.id }}/delete" style="margin:0;">
+          <button type="submit" style="background:none;border:none;color:#555;font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- インライン粗利編集フォーム -->
+    <div id="edit-{{ cut.id }}" style="display:none; margin-top:10px; background:#1a1a2e; border-radius:10px; padding:12px;">
+      <form method="post" action="/pig/{{ pig.id }}/cut/{{ cut.id }}/edit">
+        <div style="color:var(--muted); font-size:0.75rem; margin-bottom:8px;">粗利設定を変更</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+          <label style="cursor:pointer;">
+            <input type="radio" name="customer_tier" value="premium" style="display:none;"
+              {% if cut.customer_tier == 'premium' %}checked{% endif %}>
+            <div onclick="this.previousElementSibling.checked=true; showCustom('cc-{{ cut.id }}', false)"
+              style="padding:8px; border-radius:8px; text-align:center; border:2px solid {% if cut.customer_tier == 'premium' %}var(--accent){% else %}#333{% endif %}; font-size:0.78rem; font-weight:700; cursor:pointer;">
+              高粗利<br><span style="font-size:0.65rem; color:var(--muted);">75%</span>
+            </div>
+          </label>
+          <label style="cursor:pointer;">
+            <input type="radio" name="customer_tier" value="standard" style="display:none;"
+              {% if cut.customer_tier == 'standard' %}checked{% endif %}>
+            <div onclick="this.previousElementSibling.checked=true; showCustom('cc-{{ cut.id }}', false)"
+              style="padding:8px; border-radius:8px; text-align:center; border:2px solid {% if cut.customer_tier == 'standard' %}var(--accent){% else %}#333{% endif %}; font-size:0.78rem; font-weight:700; cursor:pointer;">
+              標準粗利<br><span style="font-size:0.65rem; color:var(--muted);">65%</span>
+            </div>
+          </label>
+          <label style="cursor:pointer;">
+            <input type="radio" name="customer_tier" value="custom" style="display:none;"
+              {% if cut.customer_tier == 'custom' %}checked{% endif %}>
+            <div onclick="this.previousElementSibling.checked=true; showCustom('cc-{{ cut.id }}', true)"
+              style="padding:8px; border-radius:8px; text-align:center; border:2px solid {% if cut.customer_tier == 'custom' %}var(--accent){% else %}#333{% endif %}; font-size:0.78rem; font-weight:700; cursor:pointer;">
+              カスタム<br><span style="font-size:0.65rem; color:var(--muted);">任意%</span>
+            </div>
+          </label>
+        </div>
+        <div id="cc-{{ cut.id }}" style="display:{% if cut.customer_tier == 'custom' %}flex{% else %}none{% endif %}; align-items:center; gap:8px; margin-bottom:10px;">
+          <input type="number" name="custom_gross_margin" min="1" max="99" step="1" placeholder="例: 70"
+            value="{{ cut.custom_gross_margin | int if cut.custom_gross_margin else '' }}"
+            style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--accent); color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
+          <span style="color:var(--muted);">%</span>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:10px; font-size:0.9rem;">保存して再計算</button>
       </form>
     </div>
+
     <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-top:8px;">
       <div style="text-align:center;">
         <div style="color:var(--muted); font-size:0.7rem;">歩留</div>
@@ -176,6 +221,15 @@
 <a href="/" class="btn btn-ghost">ホーム</a>
 
 <script>
+  function toggleEdit(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function showCustom(id, show) {
+    document.getElementById(id).style.display = show ? 'flex' : 'none';
+  }
+
   document.querySelectorAll('input[name="customer_tier"]').forEach(radio => {
     radio.addEventListener('change', () => {
       document.querySelectorAll('.tier-btn').forEach(btn => {
