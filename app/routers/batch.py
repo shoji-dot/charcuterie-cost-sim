@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Form, Depends
 import csv
 import io
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from datetime import date
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -76,11 +77,14 @@ async def batch_ranking(request: Request, db: Session = Depends(get_db)):
 
 @router.get("", response_class=HTMLResponse)
 async def batch_list(request: Request, db: Session = Depends(get_db)):
+    from datetime import date
     templates_list = db.query(models.RecipeTemplate).order_by(models.RecipeTemplate.id).all()
     batches = db.query(models.Batch).order_by(models.Batch.created_at.desc()).limit(20).all()
+    today = date.today()
     return templates.TemplateResponse(
         request, "batch_list.html",
-        {"recipe_templates": templates_list, "batches": batches},
+        {"recipe_templates": templates_list, "batches": batches,
+         "now_month": today.month, "now_year": today.year},
     )
 
 
@@ -445,6 +449,161 @@ async def batch_export_csv(db: Session = Depends(get_db)):
         iter([content_bytes]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=batch_history.csv"},
+    )
+
+
+@router.get("/export/pdf")
+async def batch_export_pdf(
+    db: Session = Depends(get_db),
+    year: int = None,
+    month: int = None,
+):
+    """月次原価レポートをPDFでダウンロード"""
+    import io
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
+    # 日本語フォント登録
+    pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
+    JP = "HeiseiKakuGo-W5"
+
+    today = date.today()
+    if not year:
+        year = today.year
+    if not month:
+        month = today.month
+
+    # 対象バッチ取得
+    from sqlalchemy import extract
+    batches = (
+        db.query(models.Batch)
+        .filter(
+            extract("year", models.Batch.created_at) == year,
+            extract("month", models.Batch.created_at) == month,
+        )
+        .order_by(models.Batch.created_at)
+        .all()
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=15*mm, rightMargin=15*mm,
+        topMargin=18*mm, bottomMargin=18*mm,
+    )
+
+    def p(text, size=10, bold=False, color=colors.black, align="LEFT"):
+        style = ParagraphStyle(
+            "s", fontName=JP, fontSize=size, textColor=color,
+            alignment={"LEFT": 0, "CENTER": 1, "RIGHT": 2}[align],
+            leading=size * 1.4,
+        )
+        if bold:
+            style.fontName = JP
+        return Paragraph(text, style)
+
+    story = []
+
+    # タイトル
+    story.append(p(f"{year}年{month}月　月次原価レポート", size=16, bold=True, align="CENTER"))
+    story.append(Spacer(1, 6*mm))
+
+    if not batches:
+        story.append(p("該当月のデータがありません", size=11, color=colors.grey, align="CENTER"))
+    else:
+        # サマリー計算
+        total_batches = len(batches)
+        total_cost = sum(b.total_cost for b in batches)
+        total_weight = sum(b.finished_weight for b in batches)
+        avg_margin = sum(b.gross_margin for b in batches) / total_batches
+
+        # サマリーカード
+        summary_data = [
+            ["仕込み回数", "総食材原価", "総完成量", "平均粗利率"],
+            [
+                f"{total_batches} 回",
+                f"¥{total_cost:,.0f}",
+                f"{total_weight:.1f} kg",
+                f"{avg_margin:.1f}%",
+            ],
+        ]
+        st = Table(summary_data, colWidths=[43*mm, 43*mm, 43*mm, 43*mm])
+        st.setStyle(TableStyle([
+            ("FONTNAME", (0,0), (-1,-1), JP),
+            ("FONTSIZE", (0,0), (-1,0), 9),
+            ("FONTSIZE", (0,1), (-1,1), 13),
+            ("FONTNAME", (0,1), (-1,1), JP),
+            ("ALIGN", (0,0), (-1,-1), "CENTER"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1a1a2e")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.HexColor("#888888")),
+            ("BACKGROUND", (0,1), (-1,1), colors.HexColor("#16213e")),
+            ("TEXTCOLOR", (0,1), (-1,1), colors.white),
+            ("ROWBACKGROUNDS", (0,0), (-1,-1), None),
+            ("BOX", (0,0), (-1,-1), 0.5, colors.HexColor("#333333")),
+            ("INNERGRID", (0,0), (-1,-1), 0.5, colors.HexColor("#333333")),
+            ("TOPPADDING", (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ]))
+        story.append(st)
+        story.append(Spacer(1, 8*mm))
+
+        # バッチ一覧テーブル
+        story.append(p("仕込み履歴", size=11, bold=True))
+        story.append(Spacer(1, 3*mm))
+
+        headers = ["日付", "仕込み名", "完成量", "食材原価", "原価/kg", "推奨価格/kg", "粗利率"]
+        rows = [headers]
+        for b in batches:
+            tier = "高粗利" if b.customer_tier == "premium" else ("標準" if b.customer_tier == "standard" else "カスタム")
+            rows.append([
+                b.created_at.strftime("%m/%d"),
+                b.name[:16],
+                f"{b.finished_weight}kg",
+                f"¥{b.total_cost:,.0f}",
+                f"¥{b.cost_per_kg:,.0f}",
+                f"¥{b.recommended_price:,.0f}",
+                f"{b.gross_margin}%",
+            ])
+
+        col_w = [16*mm, 44*mm, 18*mm, 24*mm, 22*mm, 26*mm, 17*mm]
+        t = Table(rows, colWidths=col_w, repeatRows=1)
+        row_colors = []
+        for i in range(1, len(rows)):
+            bg = colors.HexColor("#16213e") if i % 2 == 0 else colors.HexColor("#1a1a2e")
+            row_colors.append(("BACKGROUND", (0,i), (-1,i), bg))
+
+        t.setStyle(TableStyle([
+            ("FONTNAME", (0,0), (-1,-1), JP),
+            ("FONTSIZE", (0,0), (-1,-1), 8.5),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#0f3460")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("TEXTCOLOR", (0,1), (-1,-1), colors.HexColor("#eaeaea")),
+            ("ALIGN", (0,0), (-1,-1), "CENTER"),
+            ("ALIGN", (1,1), (1,-1), "LEFT"),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("BOX", (0,0), (-1,-1), 0.5, colors.HexColor("#333")),
+            ("INNERGRID", (0,0), (-1,-1), 0.3, colors.HexColor("#2a2a4a")),
+            ("TOPPADDING", (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+        ] + row_colors))
+        story.append(t)
+
+    story.append(Spacer(1, 8*mm))
+    story.append(p(f"出力日: {today.strftime('%Y年%m月%d日')}", size=8, color=colors.grey, align="RIGHT"))
+
+    doc.build(story)
+    buf.seek(0)
+    filename = f"report_{year}{month:02d}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 

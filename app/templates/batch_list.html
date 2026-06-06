@@ -43,11 +43,46 @@
 <div class="card">
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
     <p style="color:var(--muted); font-size:0.85rem; margin:0;">計算履歴</p>
-    <a href="/batch/export/csv"
-      style="font-size:0.8rem; color:var(--accent); text-decoration:none; border:1px solid var(--accent); border-radius:8px; padding:4px 10px;">
-      ⬇ CSV
-    </a>
+    <div style="display:flex; gap:6px;">
+      <a href="/batch/export/csv"
+        style="font-size:0.8rem; color:var(--accent); text-decoration:none; border:1px solid var(--accent); border-radius:8px; padding:4px 10px;">
+        ⬇ CSV
+      </a>
+      <a id="pdfLink" href="/batch/export/pdf"
+        style="font-size:0.8rem; color:var(--green); text-decoration:none; border:1px solid var(--green); border-radius:8px; padding:4px 10px;">
+        📄 PDF
+      </a>
+    </div>
   </div>
+  <!-- 月選択 -->
+  <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+    <select id="pdfYear" style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:6px 8px; font-size:0.82rem; outline:none;">
+    </select>
+    <select id="pdfMonth" style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:6px 8px; font-size:0.82rem; outline:none;">
+      {% for m in range(1,13) %}<option value="{{ m }}" {% if m == now_month %}selected{% endif %}>{{ m }}月</option>{% endfor %}
+    </select>
+    <span style="color:var(--muted); font-size:0.78rem;">のPDF</span>
+  </div>
+  <script>
+    (function() {
+      const now = new Date();
+      const yearSel = document.getElementById('pdfYear');
+      for (let y = now.getFullYear(); y >= now.getFullYear() - 2; y--) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y + '年';
+        if (y === now.getFullYear()) o.selected = true;
+        yearSel.appendChild(o);
+      }
+      function updateLink() {
+        const y = yearSel.value;
+        const m = document.getElementById('pdfMonth').value;
+        document.getElementById('pdfLink').href = `/batch/export/pdf?year=${y}&month=${m}`;
+      }
+      yearSel.addEventListener('change', updateLink);
+      document.getElementById('pdfMonth').addEventListener('change', updateLink);
+      updateLink();
+    })();
+  </script>
   {% for b in batches %}
   <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2a2a4a;">
     <a href="/batch/{{ b.id }}" style="color:var(--text); text-decoration:none; flex:1;">
