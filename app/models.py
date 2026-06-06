@@ -91,6 +91,7 @@ class Batch(Base):
     gross_margin = Column(Float, nullable=False)
     notes = Column(Text, nullable=True)
     waste_weight = Column(Float, nullable=True)
+    raw_weight = Column(Float, nullable=True)   # 仕込み前重量
     portion_weight = Column(Float, nullable=True)
     portion_unit = Column(String, default="g")
     created_at = Column(DateTime, default=datetime.utcnow)

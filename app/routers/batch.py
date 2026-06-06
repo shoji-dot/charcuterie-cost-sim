@@ -205,6 +205,8 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
         portion_unit = form.get("portion_unit", "g")
         waste_weight_raw = form.get("waste_weight", "")
         waste_weight = float(waste_weight_raw) if waste_weight_raw else None
+        raw_weight_raw = form.get("raw_weight", "")
+        raw_weight = float(raw_weight_raw) if raw_weight_raw else None
     except ValueError as e:
         return templates.TemplateResponse(
             request, "batch_form.html",
@@ -264,6 +266,7 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
         custom_rate=result.pop("custom_rate"),
         notes=notes,
         waste_weight=waste_weight,
+        raw_weight=raw_weight,
         portion_weight=portion_weight,
         portion_unit=portion_unit,
         **result,
@@ -313,6 +316,8 @@ async def batch_edit_save(request: Request, batch_id: int, db: Session = Depends
         portion_unit = form.get("portion_unit", "g")
         waste_weight_raw = form.get("waste_weight", "")
         waste_weight = float(waste_weight_raw) if waste_weight_raw else None
+        raw_weight_raw = form.get("raw_weight", "")
+        raw_weight = float(raw_weight_raw) if raw_weight_raw else None
     except ValueError as e:
         masters = db.query(models.IngredientMaster).all()
         masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}

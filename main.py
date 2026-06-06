@@ -16,6 +16,7 @@ _migrations = [
     "ALTER TABLE recipe_templates ADD COLUMN default_customer_tier VARCHAR DEFAULT 'standard'",
     "ALTER TABLE recipe_templates ADD COLUMN default_gross_margin FLOAT",
     "ALTER TABLE batches ADD COLUMN waste_weight FLOAT",
+    "ALTER TABLE batches ADD COLUMN raw_weight FLOAT",
 ]
 with engine.connect() as conn:
     for sql in _migrations:

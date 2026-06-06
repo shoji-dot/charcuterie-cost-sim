@@ -224,7 +224,7 @@
 {% set actual_cost_per_kg = (batch.total_cost / sellable) | round | int if sellable > 0 else 0 %}
 <div class="card" style="border-left:4px solid var(--yellow); padding:14px 16px;">
   <div style="color:var(--yellow); font-size:0.85rem; font-weight:700; margin-bottom:8px;">🗑 廃棄ロス補正</div>
-  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; text-align:center; font-size:0.82rem;">
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr {% if batch.raw_weight %}1fr{% endif %}; gap:6px; text-align:center; font-size:0.82rem;">
     <div>
       <div style="color:var(--muted); font-size:0.7rem;">廃棄量</div>
       <div style="font-weight:700; color:var(--yellow);">{{ batch.waste_weight }}kg</div>
@@ -237,6 +237,13 @@
       <div style="color:var(--muted); font-size:0.7rem;">実原価/kg</div>
       <div style="font-weight:700; color:var(--accent);">¥{{ "{:,.0f}".format(actual_cost_per_kg) }}</div>
     </div>
+    {% if batch.raw_weight and batch.raw_weight > 0 %}
+    {% set yield_rate = (sellable / batch.raw_weight * 100) | round(1) %}
+    <div>
+      <div style="color:var(--muted); font-size:0.7rem;">実歩留まり率</div>
+      <div style="font-weight:700; color:{% if yield_rate >= 80 %}var(--green){% elif yield_rate >= 60 %}var(--yellow){% else %}var(--accent){% endif %};">{{ yield_rate }}%</div>
+    </div>
+    {% endif %}
   </div>
   <div style="color:var(--muted); font-size:0.72rem; margin-top:8px;">
     ※ 廃棄ロスを考慮した実際の原価/kg（販売価格設定の参考に）

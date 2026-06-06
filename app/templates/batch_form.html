@@ -143,18 +143,39 @@
     </div>
   </div>
 
-  <!-- 廃棄ロス -->
+  <!-- 廃棄ロス・歩留まり -->
   <div class="card">
-    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:8px;">
-      廃棄ロス <span style="color:#555; font-size:0.75rem;">（任意）</span>
+    <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:12px;">
+      廃棄ロス・歩留まり <span style="color:#555; font-size:0.75rem;">（任意）</span>
     </label>
-    <div style="display:flex; align-items:center; gap:8px;">
-      <input type="number" name="waste_weight" inputmode="decimal" step="0.01" min="0"
-        placeholder="例: 0.2"
-        style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.8rem; font-weight:700; outline:none; padding:4px 0; text-align:right;">
-      <span style="color:var(--muted); font-size:1.1rem; flex-shrink:0;">kg</span>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div>
+        <div style="color:var(--muted); font-size:0.72rem; margin-bottom:6px;">仕込み前重量 (kg)</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input type="number" name="raw_weight" inputmode="decimal" step="0.1" min="0"
+            value="{{ last_batch.raw_weight if last_batch and last_batch.raw_weight else '' }}"
+            placeholder="例: 3.0"
+            style="flex:1; background:transparent; border:none; border-bottom:2px solid #555; color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
+            oninput="calcYield()">
+          <span style="color:var(--muted); font-size:0.9rem;">kg</span>
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--muted); font-size:0.72rem; margin-bottom:6px;">廃棄量 (kg)</div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input type="number" name="waste_weight" inputmode="decimal" step="0.01" min="0"
+            value="{{ last_batch.waste_weight if last_batch and last_batch.waste_weight else '' }}"
+            placeholder="例: 0.2"
+            style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
+            oninput="calcYield()">
+          <span style="color:var(--muted); font-size:0.9rem;">kg</span>
+        </div>
+      </div>
     </div>
-    <div style="color:var(--muted); font-size:0.72rem; margin-top:4px;">実際に販売できなかった量（切れ端・傷みなど）</div>
+    <div id="yieldResult" style="display:none; margin-top:10px; background:#1a1a2e; border-radius:8px; padding:10px; text-align:center; font-size:0.82rem;">
+      <span style="color:var(--muted);">実歩留まり率: </span>
+      <span id="yieldRate" style="font-weight:700;"></span>
+    </div>
   </div>
 
   <!-- 小分け設定 -->
@@ -258,6 +279,22 @@ function updateTotal() {
     total += convertToPriceUnit(a, u, pu) * p;
   });
   document.getElementById('totalCost').textContent = '¥' + Math.round(total).toLocaleString();
+}
+
+function calcYield() {
+  const raw = parseFloat(document.querySelector('[name=raw_weight]')?.value) || 0;
+  const waste = parseFloat(document.querySelector('[name=waste_weight]')?.value) || 0;
+  const resultEl = document.getElementById('yieldResult');
+  const rateEl = document.getElementById('yieldRate');
+  if (raw > 0) {
+    const sellable = raw - waste;
+    const rate = (sellable / raw * 100).toFixed(1);
+    rateEl.textContent = rate + '%';
+    rateEl.style.color = rate >= 80 ? 'var(--green)' : rate >= 60 ? 'var(--yellow)' : 'var(--accent)';
+    resultEl.style.display = 'block';
+  } else {
+    resultEl.style.display = 'none';
+  }
 }
 
 document.querySelectorAll('.ing-row input').forEach(i => i.addEventListener('input', updateTotal));
