@@ -184,5 +184,4 @@ async def ingredient_seed(db: Session = Depends(get_db)):
             existing.deleted_at = None
             added += 1
     db.commit()
-    logger.info("食材マスタープリセット読み込み完了: %d件追加", added)
-    return RedirectResponse("/ingredients", status_code=303)
+    logger.info("食材マスタープリセ
