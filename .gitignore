@@ -15,6 +15,7 @@ env/
 
 # DB（ローカル開発用のみ）
 *.db
+*.db-journal
 *.sqlite3
 
 # 環境変数

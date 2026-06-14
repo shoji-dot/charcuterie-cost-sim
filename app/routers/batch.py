@@ -731,10 +731,12 @@ async def template_edit_save(request: Request, template_id: int, db: Session = D
             models.RecipeTemplate.id != template_id
         ).first()
         if dup:
+            masters = db.query(models.IngredientMaster).filter(models.IngredientMaster.deleted_at.is_(None)).all()
+            masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
             return templates.TemplateResponse(
                 request, "template_edit.html",
                 {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS,
-                 "error": f"「{new_name}」は既に存在します"},
+                 "masters_map": masters_map, "error": f"「{new_name}」は既に存在します"},
             )
     tmpl.name = new_name
     tmpl.notes = form.get("notes", "")
@@ -778,9 +780,12 @@ async def template_new_save(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     name = form.get("name", "").strip()
     if not name:
+        masters = db.query(models.IngredientMaster).filter(models.IngredientMaster.deleted_at.is_(None)).all()
+        masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
         return templates.TemplateResponse(
             request, "template_edit.html",
-            {"tmpl": None, "categories": CATEGORIES, "units": UNITS, "error": "名前を入力してください"},
+            {"tmpl": None, "categories": CATEGORIES, "units": UNITS,
+             "masters_map": masters_map, "error": "名前を入力してください"},
         )
     existing = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.name == name).first()
     if existing:

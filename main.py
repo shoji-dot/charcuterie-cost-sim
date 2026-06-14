@@ -3,11 +3,12 @@ import logging
 import os
 import secrets
 from fastapi import FastAPI
-from sqlalchemy import text
+from alembic.config import Config as AlembicConfig
+from alembic import command as alembic_command
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from app.database import Base, engine, SessionLocal
+from app.database import SessionLocal
 from app.routers import calculator, pig, batch, settings, ingredients
 
 # ── ロギング設定 ─────────────────────────────────────────────────
@@ -73,29 +74,15 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
             headers={"WWW-Authenticate": 'Basic realm="Cost Simulator"'},
         )
 
-Base.metadata.create_all(bind=engine)
-
-_migrations = [
-    "ALTER TABLE batch_ingredients ADD COLUMN price_per FLOAT DEFAULT 1",
-    "ALTER TABLE ingredient_masters ADD COLUMN deleted_at TIMESTAMP",
-    "ALTER TABLE batches ADD COLUMN portion_weight FLOAT",
-    "ALTER TABLE batches ADD COLUMN portion_unit VARCHAR DEFAULT 'g'",
-    "ALTER TABLE batch_ingredients ADD COLUMN price_unit VARCHAR DEFAULT 'kg'",
-    "ALTER TABLE batches ADD COLUMN custom_rate FLOAT",
-    "ALTER TABLE cuts ADD COLUMN gross_margin FLOAT",
-    "ALTER TABLE cuts ADD COLUMN custom_gross_margin FLOAT",
-    "ALTER TABLE recipe_templates ADD COLUMN default_customer_tier VARCHAR DEFAULT 'standard'",
-    "ALTER TABLE recipe_templates ADD COLUMN default_gross_margin FLOAT",
-    "ALTER TABLE batches ADD COLUMN waste_weight FLOAT",
-    "ALTER TABLE batches ADD COLUMN raw_weight FLOAT",
-]
-with engine.connect() as conn:
-    for sql in _migrations:
-        try:
-            conn.execute(text(sql))
-            conn.commit()
-        except Exception:
-            pass
+# ── Alembic マイグレーション自動実行 ─────────────────────────
+_alembic_cfg = AlembicConfig(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+_alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "alembic"))
+try:
+    alembic_command.upgrade(_alembic_cfg, "head")
+    logger.info("Alembic マイグレーション完了")
+except Exception as e:
+    logger.error("Alembic マイグレーション失敗: %s", e)
+    raise
 
 from app.seed_recipes import seed
 _db = SessionLocal()
