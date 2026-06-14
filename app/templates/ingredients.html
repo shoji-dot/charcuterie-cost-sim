@@ -9,22 +9,25 @@
   </button>
 </form>
 
-<!-- 追加フォーム -->
-<div class="card">
-  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">食材を登録（同名は上書き・既存バッチの単価も自動更新）</p>
-  <form method="post" action="/ingredients/save">
+<!-- 追加/編集フォーム -->
+<div class="card" id="editCard">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <p style="color:var(--muted); font-size:0.8rem;" id="formLabel">食材を登録（同名は上書き・既存バッチの単価も自動更新）</p>
+    <button type="button" id="cancelEditBtn" onclick="cancelEdit()" style="display:none; background:none; border:none; color:var(--muted); font-size:0.8rem; cursor:pointer; text-decoration:underline;">キャンセル</button>
+  </div>
+  <form method="post" action="/ingredients/save" id="ingForm">
     <div style="display:grid; grid-template-columns:2fr 1fr 0.8fr; gap:6px; margin-bottom:8px;">
-      <input type="text" name="name" required placeholder="食材名"
+      <input type="text" name="name" id="fName" required placeholder="食材名"
         style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 8px; font-size:0.9rem; outline:none;">
-      <input type="number" name="unit_price" required placeholder="単価" step="1" min="0" inputmode="numeric"
+      <input type="number" name="unit_price" id="fPrice" required placeholder="単価" step="1" min="0" inputmode="numeric"
         style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 6px; font-size:0.9rem; outline:none; text-align:right;">
-      <select name="price_unit"
+      <select name="price_unit" id="fUnit"
         style="background:#1e2a44; border:1px solid var(--accent); border-radius:8px; color:var(--accent); padding:10px 4px; font-size:0.85rem; outline:none; font-weight:700;">
         {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
       </select>
     </div>
     <div style="margin-bottom:10px;">
-      <select name="category"
+      <select name="category" id="fCat"
         style="width:100%; background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 8px; font-size:0.85rem; outline:none;">
         {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
       </select>
@@ -50,12 +53,20 @@
           ¥{{ m.unit_price | int }} / {{ m.price_unit }}
         </div>
       </div>
-      <form method="post" action="/ingredients/delete/{{ m.id }}" style="margin:0;">
-        <button type="submit"
-          style="background:none; border:1px solid #444; border-radius:8px; color:var(--muted); padding:6px 12px; font-size:0.8rem; cursor:pointer;">
-          削除
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <button type="button"
+          onclick="editMaster('{{ m.name | e }}', {{ m.unit_price | int }}, '{{ m.price_unit | e }}', '{{ m.category | e }}')"
+          style="background:none; border:1px solid var(--accent); border-radius:8px; color:var(--accent); padding:6px 12px; font-size:0.8rem; cursor:pointer;">
+          編集
         </button>
-      </form>
+        <form method="post" action="/ingredients/delete/{{ m.id }}"
+          onsubmit="return confirm('「{{ m.name }}」を削除しますか？\nこの操作は取り消せません。')" style="margin:0;">
+          <button type="submit"
+            style="background:none; border:1px solid #444; border-radius:8px; color:var(--muted); padding:6px 12px; font-size:0.8rem; cursor:pointer;">
+            削除
+          </button>
+        </form>
+      </div>
     </div>
   {% endfor %}
 {% else %}
@@ -65,4 +76,31 @@
 {% endif %}
 
 <a href="/batch" class="btn btn-ghost" style="margin-top:12px;">← もどる</a>
+
+<script>
+function editMaster(name, price, unit, cat) {
+  document.getElementById('fName').value = name;
+  document.getElementById('fPrice').value = price;
+  var unitSel = document.getElementById('fUnit');
+  for (var i = 0; i < unitSel.options.length; i++) {
+    if (unitSel.options[i].value === unit) { unitSel.selectedIndex = i; break; }
+  }
+  var catSel = document.getElementById('fCat');
+  for (var j = 0; j < catSel.options.length; j++) {
+    if (catSel.options[j].value === cat) { catSel.selectedIndex = j; break; }
+  }
+  document.getElementById('formLabel').textContent = '編集中: ' + name;
+  document.getElementById('cancelEditBtn').style.display = 'inline';
+  document.getElementById('editCard').style.borderColor = 'var(--accent)';
+  document.getElementById('fName').focus();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  document.getElementById('ingForm').reset();
+  document.getElementById('formLabel').textContent = '食材を登録（同名は上書き・既存バッチの単価も自動更新）';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('editCard').style.borderColor = '';
+}
+</script>
 {% endblock %}

@@ -62,37 +62,44 @@
       style="width:100%; background:transparent; border:none; border-bottom:1px solid #444; color:var(--text); font-size:0.95rem; outline:none; resize:none; padding:6px 0;">{{ tmpl.notes if tmpl and tmpl.notes else '' }}</textarea>
   </div>
 
+  <!-- 食材リスト -->
   <div class="card" style="padding:16px;">
-    <p style="color:var(--muted); font-size:0.85rem; margin-bottom:10px;">食材リスト（量は1バッチの目安）</p>
-    <div style="display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; margin-bottom:6px;">
-      <span style="color:var(--muted); font-size:0.72rem; padding:0 4px;">食材名</span>
-      <span style="color:var(--muted); font-size:0.72rem; text-align:right;">量</span>
-      <span style="color:var(--muted); font-size:0.72rem; text-align:center;">単位</span>
-      <span style="color:var(--muted); font-size:0.72rem; text-align:center;">カテゴリ</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <p style="color:var(--muted); font-size:0.85rem;">食材リスト（量は1バッチの目安）</p>
+    </div>
+
+    <!-- ヘッダー -->
+    <div style="display:grid; grid-template-columns:2fr 1fr 0.7fr 1fr 28px; gap:4px; margin-bottom:4px; padding:0 2px;">
+      <span style="color:var(--muted); font-size:0.68rem;">食材名</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:right;">目安量</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:center;">単位</span>
+      <span style="color:var(--muted); font-size:0.68rem; text-align:center;">カテゴリ</span>
       <span></span>
     </div>
+
     <div id="ingList">
       {% if tmpl %}
         {% for ing in tmpl.ingredients %}
-        <div class="ing-row" style="display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; align-items:center; margin-bottom:8px;">
+        <div class="ing-row" style="display:grid; grid-template-columns:2fr 1fr 0.7fr 1fr 28px; gap:4px; align-items:center; margin-bottom:8px;">
           <input type="text" name="ing_name" value="{{ ing.name }}"
-            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%;">
+            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%; min-width:0;">
           <input type="number" name="ing_amount" value="{{ ing.default_amount }}" step="0.001"
-            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%; text-align:right;" inputmode="decimal">
-          <select name="ing_unit" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; width:100%;">
+            style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.85rem; outline:none; width:100%; text-align:right; min-width:0;" inputmode="decimal">
+          <select name="ing_unit" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px 4px; font-size:0.8rem; outline:none; width:100%; min-width:0;">
             {% for u in units %}<option value="{{ u }}" {% if u == ing.unit %}selected{% endif %}>{{ u }}</option>{% endfor %}
           </select>
-          <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; width:100%;">
+          <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:var(--text); padding:8px 4px; font-size:0.8rem; outline:none; width:100%; min-width:0;">
             {% for c in categories %}<option value="{{ c }}" {% if c == ing.category %}selected{% endif %}>{{ c }}</option>{% endfor %}
           </select>
           <button type="button" onclick="this.closest('.ing-row').remove()"
-            style="background:none; border:none; color:#666; font-size:1.1rem; cursor:pointer; padding:4px;">✕</button>
+            style="background:none; border:none; color:#666; font-size:1.1rem; cursor:pointer; padding:4px; flex-shrink:0;">✕</button>
         </div>
         {% endfor %}
       {% endif %}
     </div>
-    <button type="button" onclick="addRow()"
-      style="width:100%; padding:12px; background:transparent; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.95rem; cursor:pointer; margin-top:8px;">
+
+    <button type="button" onclick="openMasterModal()"
+      style="width:100%; padding:12px; background:rgba(233,69,96,0.12); border:1px solid var(--accent); border-radius:10px; color:var(--accent); font-size:0.9rem; cursor:pointer; font-weight:700; margin-top:8px;">
       ＋ 食材を追加
     </button>
   </div>
@@ -103,13 +110,42 @@
 
   {% if tmpl %}
   <form method="post" action="/batch/template/{{ tmpl.id }}/delete"
-    onsubmit="return confirm('「{{ tmpl.name }}」を削除しますか？')">
+    onsubmit="return confirm('「{{ tmpl.name }}」を削除しますか？\nこの操作は取り消せません。')">
     <button type="submit" class="btn btn-ghost" style="color:#e94560; border-color:#e94560; margin-top:8px;">このレシピを削除</button>
   </form>
   {% endif %}
 </form>
 
 <a href="/batch" class="btn btn-ghost">← もどる</a>
+
+<!-- 食材マスター選択モーダル -->
+<div id="masterModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.75);">
+  <div style="background:#121929; border-radius:16px 16px 0 0; position:fixed; bottom:0; left:0; right:0; max-height:88vh; display:flex; flex-direction:column; max-width:480px; margin:0 auto;">
+    <div style="padding:16px 16px 8px; border-bottom:1px solid #333; flex-shrink:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-weight:700; font-size:1rem;">食材を選択</span>
+        <button type="button" onclick="closeMasterModal()" style="background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; padding:0 4px; line-height:1;">✕</button>
+      </div>
+      <input id="masterSearch" type="text" placeholder="食材名で絞り込み…" oninput="filterMaster(this.value)"
+        style="width:100%; background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:9px 12px; font-size:0.9rem; outline:none; box-sizing:border-box;">
+    </div>
+    <div id="masterList" style="overflow-y:auto; padding:10px 16px; flex:1; -webkit-overflow-scrolling:touch;"></div>
+    <div style="padding:12px 16px 20px; border-top:1px solid #333; flex-shrink:0;">
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button type="button" onclick="selectAllVisible()"
+          style="flex:1; padding:10px; background:#1e2a44; border:1px solid #444; border-radius:10px; color:var(--muted); font-size:0.82rem; cursor:pointer;">全選択</button>
+        <button type="button" onclick="addSelectedFromMaster()"
+          style="flex:2; padding:10px; background:var(--accent); border:none; border-radius:10px; color:#fff; font-size:0.9rem; font-weight:700; cursor:pointer;">
+          選択した食材を追加 (<span id="selCount">0</span>件)
+        </button>
+      </div>
+      <button type="button" onclick="closeMasterModal(); addRow();"
+        style="width:100%; padding:10px; background:none; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.85rem; cursor:pointer;">
+        ＋ 手入力で追加
+      </button>
+    </div>
+  </div>
+</div>
 
 <script>
 // デフォルト粗利ボタン切替
@@ -129,23 +165,90 @@ document.querySelectorAll('input[name="default_customer_tier"]').forEach(r => {
 
 const UNITS = {{ units | tojson }};
 const CATS = {{ categories | tojson }};
-function addRow() {
-  const unitOpts = UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
-  const catOpts  = CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+const MASTERS = {{ (masters_map or {}) | tojson }};
+const MASTER_LIST = Object.entries(MASTERS).map(([name, m]) => ({name, ...m}));
+
+function addRow(name='', amount='', unit='kg', cat='その他') {
+  const unitOpts = UNITS.map(u => `<option value="${u}" ${u===unit?'selected':''}>${u}</option>`).join('');
+  const catOpts  = CATS.map(c => `<option value="${c}" ${c===cat?'selected':''}>${c}</option>`).join('');
   const div = document.createElement('div');
   div.className = 'ing-row';
-  div.style = 'display:grid; grid-template-columns:2fr 1fr 0.6fr 0.8fr 28px; gap:4px; align-items:center; margin-bottom:8px;';
-  div.innerHTML = `
-    <input type="text" name="ing_name" placeholder="食材名"
-      style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.85rem; outline:none; width:100%;">
-    <input type="number" name="ing_amount" placeholder="量" step="0.001"
-      style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.85rem; outline:none; width:100%; text-align:right;" inputmode="decimal">
-    <select name="ing_unit" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.8rem; outline:none; width:100%;">${unitOpts}</select>
-    <select name="ing_category" style="background:#1e2a44; border:1px solid #333; border-radius:8px; color:#eaeaea; padding:8px; font-size:0.8rem; outline:none; width:100%;">${catOpts}</select>
-    <button type="button" onclick="this.closest('.ing-row').remove()"
-      style="background:none; border:none; color:#666; font-size:1.1rem; cursor:pointer; padding:4px;">✕</button>
-  `;
+  div.style = 'display:grid; grid-template-columns:2fr 1fr 0.7fr 1fr 28px; gap:4px; align-items:center; margin-bottom:8px;';
+  const nameEl = document.createElement('input');
+  nameEl.type='text'; nameEl.name='ing_name'; nameEl.value=name; nameEl.placeholder='食材名';
+  nameEl.style='background:#1e2a44;border:1px solid #333;border-radius:8px;color:#eaeaea;padding:8px;font-size:0.85rem;outline:none;width:100%;min-width:0;';
+  const amtEl = document.createElement('input');
+  amtEl.type='number'; amtEl.name='ing_amount'; amtEl.value=amount; amtEl.placeholder='量'; amtEl.step='0.001'; amtEl.setAttribute('inputmode','decimal');
+  amtEl.style='background:#1e2a44;border:1px solid #333;border-radius:8px;color:#eaeaea;padding:8px;font-size:0.85rem;outline:none;width:100%;text-align:right;min-width:0;';
+  const unitEl = document.createElement('select'); unitEl.name='ing_unit'; unitEl.innerHTML=unitOpts;
+  unitEl.style='background:#1e2a44;border:1px solid #333;border-radius:8px;color:#eaeaea;padding:8px 4px;font-size:0.8rem;outline:none;width:100%;min-width:0;';
+  const catEl = document.createElement('select'); catEl.name='ing_category'; catEl.innerHTML=catOpts;
+  catEl.style='background:#1e2a44;border:1px solid #333;border-radius:8px;color:#eaeaea;padding:8px 4px;font-size:0.8rem;outline:none;width:100%;min-width:0;';
+  const delBtn = document.createElement('button');
+  delBtn.type='button'; delBtn.textContent='✕'; delBtn.onclick=function(){ this.closest('.ing-row').remove(); };
+  delBtn.style='background:none;border:none;color:#666;font-size:1.1rem;cursor:pointer;padding:4px;flex-shrink:0;';
+  div.appendChild(nameEl); div.appendChild(amtEl); div.appendChild(unitEl); div.appendChild(catEl); div.appendChild(delBtn);
   document.getElementById('ingList').appendChild(div);
+}
+
+// ── マスター選択モーダル ────────────────────────────
+function buildMasterList(filter='') {
+  const lower = filter.toLowerCase();
+  const filtered = MASTER_LIST.filter(m => !lower || m.name.toLowerCase().includes(lower));
+  const groups = {};
+  filtered.forEach(m => { if (!groups[m.category]) groups[m.category] = []; groups[m.category].push(m); });
+  const el = document.getElementById('masterList');
+  el.innerHTML = '';
+  if (!filtered.length) { el.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px;">一致なし</p>'; return; }
+  Object.keys(groups).sort().forEach(cat => {
+    const catEl = document.createElement('div');
+    const catLabel = document.createElement('p');
+    catLabel.textContent = cat;
+    catLabel.style = 'color:var(--muted);font-size:0.72rem;margin:10px 0 6px;letter-spacing:0.08em;';
+    catEl.appendChild(catLabel);
+    groups[cat].forEach(m => {
+      const row = document.createElement('label');
+      row.style = 'display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;margin-bottom:4px;background:#1a2038;';
+      const chk = document.createElement('input');
+      chk.type='checkbox'; chk.className='master-chk';
+      chk.dataset.name=m.name; chk.dataset.unit=m.price_unit; chk.dataset.cat=m.category;
+      chk.style='width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;';
+      chk.addEventListener('change', updateSelCount);
+      const info = document.createElement('div'); info.style='flex:1;';
+      const n1 = document.createElement('div'); n1.style='font-size:0.9rem;font-weight:600;'; n1.textContent=m.name;
+      const n2 = document.createElement('div'); n2.style='color:var(--accent);font-size:0.78rem;'; n2.textContent=`¥${m.unit_price.toLocaleString()} / ${m.price_unit}`;
+      info.appendChild(n1); info.appendChild(n2);
+      row.appendChild(chk); row.appendChild(info);
+      catEl.appendChild(row);
+    });
+    el.appendChild(catEl);
+  });
+  updateSelCount();
+}
+function openMasterModal() {
+  document.getElementById('masterSearch').value='';
+  buildMasterList();
+  document.getElementById('masterModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+function closeMasterModal() {
+  document.getElementById('masterModal').style.display='none';
+  document.body.style.overflow='';
+}
+function filterMaster(v) { buildMasterList(v); }
+function selectAllVisible() {
+  document.querySelectorAll('#masterList .master-chk').forEach(c => c.checked=true);
+  updateSelCount();
+}
+function updateSelCount() {
+  document.getElementById('selCount').textContent =
+    document.querySelectorAll('#masterList .master-chk:checked').length;
+}
+function addSelectedFromMaster() {
+  document.querySelectorAll('#masterList .master-chk:checked').forEach(chk => {
+    addRow(chk.dataset.name, '', chk.dataset.unit, chk.dataset.cat);
+  });
+  closeMasterModal();
 }
 </script>
 {% endblock %}

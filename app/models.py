@@ -150,3 +150,4 @@ class IngredientMaster(Base):
     price_unit = Column(String, nullable=False, default="kg")
     category = Column(String, nullable=False, default="その他")
     updated_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)  # NULL = 有効, 設定済み = 論理削除

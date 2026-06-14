@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request, Form, Depends
 import csv
 import io
+import logging
+from fastapi import APIRouter, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from datetime import date
 from fastapi.templating import Jinja2Templates
@@ -11,6 +12,7 @@ from app.database import get_db
 from app import models
 from app.calculator import get_cost_rate, get_tier_label, convert_to_price_unit
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/batch")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -288,6 +290,7 @@ async def batch_save(request: Request, db: Session = Depends(get_db)):
         db.add(models.BatchIngredient(batch_id=batch.id, **ing))
 
     db.commit()
+    logger.info("バッチ新規作成: id=%s name=%s total_cost=%.0f", batch.id, batch.name, batch.total_cost)
     return RedirectResponse(f"/batch/{batch.id}", status_code=303)
 
 
@@ -400,6 +403,7 @@ async def batch_edit_save(request: Request, batch_id: int, db: Session = Depends
         db.add(models.BatchIngredient(batch_id=batch.id, **ing))
 
     db.commit()
+    logger.info("バッチ更新: id=%s name=%s total_cost=%.0f", batch.id, batch.name, batch.total_cost)
     return RedirectResponse(f"/batch/{batch_id}", status_code=303)
 
 
@@ -692,6 +696,7 @@ async def batch_export_pdf(
 async def batch_delete(batch_id: int, db: Session = Depends(get_db)):
     batch = db.query(models.Batch).filter(models.Batch.id == batch_id).first()
     if batch:
+        logger.info("バッチ削除: id=%s name=%s", batch_id, batch.name)
         db.delete(batch)
         db.commit()
     return RedirectResponse("/batch", status_code=303)
@@ -702,9 +707,11 @@ async def template_edit_form(request: Request, template_id: int, db: Session = D
     tmpl = db.query(models.RecipeTemplate).filter(models.RecipeTemplate.id == template_id).first()
     if not tmpl:
         return RedirectResponse("/batch", status_code=303)
+    masters = db.query(models.IngredientMaster).all()
+    masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
     return templates.TemplateResponse(
         request, "template_edit.html",
-        {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS},
+        {"tmpl": tmpl, "categories": CATEGORIES, "units": UNITS, "masters_map": masters_map},
     )
 
 
@@ -757,10 +764,12 @@ async def template_edit_save(request: Request, template_id: int, db: Session = D
 
 
 @router.get("/template/new", response_class=HTMLResponse)
-async def template_new_form(request: Request):
+async def template_new_form(request: Request, db: Session = Depends(get_db)):
+    masters = db.query(models.IngredientMaster).all()
+    masters_map = {m.name: {"unit_price": m.unit_price, "price_unit": m.price_unit, "category": m.category} for m in masters}
     return templates.TemplateResponse(
         request, "template_edit.html",
-        {"tmpl": None, "categories": CATEGORIES, "units": UNITS},
+        {"tmpl": None, "categories": CATEGORIES, "units": UNITS, "masters_map": masters_map},
     )
 
 
