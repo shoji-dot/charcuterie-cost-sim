@@ -5,10 +5,11 @@ import secrets
 from fastapi import FastAPI
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
+from sqlalchemy import inspect as sa_inspect
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from app.database import SessionLocal
+from app.database import SessionLocal, engine
 from app.routers import calculator, pig, batch, settings, ingredients
 
 # ── ロギング設定 ─────────────────────────────────────────────────
@@ -78,8 +79,20 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 _alembic_cfg = AlembicConfig(os.path.join(os.path.dirname(__file__), "alembic.ini"))
 _alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "alembic"))
 try:
-    alembic_command.upgrade(_alembic_cfg, "head")
-    logger.info("Alembic マイグレーション完了")
+    _inspector = sa_inspect(engine)
+    if not _inspector.has_table("alembic_version"):
+        if _inspector.has_table("ingredient_masters"):
+            # 既存DBにAlembic管理なし → スタンプのみ（テーブルは既存）
+            alembic_command.stamp(_alembic_cfg, "head")
+            logger.info("Alembic: 既存DBをheadとしてスタンプ")
+        else:
+            # 新規DB → 全マイグレーション実行
+            alembic_command.upgrade(_alembic_cfg, "head")
+            logger.info("Alembic: 初期マイグレーション完了")
+    else:
+        # 通常フロー → 未適用マイグレーションを実行
+        alembic_command.upgrade(_alembic_cfg, "head")
+        logger.info("Alembic: マイグレーション完了")
 except Exception as e:
     logger.error("Alembic マイグレーション失敗: %s", e)
     raise
