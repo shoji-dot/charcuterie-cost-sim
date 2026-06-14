@@ -124,7 +124,7 @@ async def ingredient_save(
         existing.category = category
         existing.updated_at = datetime.utcnow()
         existing.deleted_at = None
-        logger.info("食材マスター更新: %s ¥%s/%s", clean_name, unit_price, price_unit)
+        logger.info("master updated: %s", clean_name)
     else:
         db.add(models.IngredientMaster(
             name=clean_name,
@@ -132,7 +132,7 @@ async def ingredient_save(
             price_unit=price_unit,
             category=category,
         ))
-        logger.info("食材マスター新規登録: %s ¥%s/%s", clean_name, unit_price, price_unit)
+        logger.info("master created: %s", clean_name)
     db.flush()
 
     batch_ings = db.query(models.BatchIngredient).filter(
@@ -162,13 +162,12 @@ async def ingredient_delete(master_id: int, db: Session = Depends(get_db)):
     if m:
         m.deleted_at = datetime.utcnow()
         db.commit()
-        logger.info("食材マスター論理削除: id=%s name=%s", master_id, m.name)
+        logger.info("master deleted: id=%s name=%s", master_id, m.name)
     return RedirectResponse("/ingredients", status_code=303)
 
 
 @router.post("/seed")
 async def ingredient_seed(db: Session = Depends(get_db)):
-    """未登録の食材のみ追加（既登録は変更しない）"""
     added = 0
     for name, price, unit, cat in SEED_INGREDIENTS:
         existing = db.query(models.IngredientMaster).filter(
@@ -180,8 +179,8 @@ async def ingredient_seed(db: Session = Depends(get_db)):
             ))
             added += 1
         elif existing.deleted_at is not None:
-            # 論理削除済みのみ復活
             existing.deleted_at = None
             added += 1
     db.commit()
-    logger.info("食材マスタープリセ
+    logger.info("seed done: %d added", added)
+    return RedirectResponse("/ingredients", status_code=303)
