@@ -179,27 +179,27 @@
     <label style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:12px;">
       廃棄ロス・歩留まり <span style="color:#555; font-size:0.75rem;">（任意）</span>
     </label>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-      <div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; min-width:0;">
+      <div style="min-width:0;">
         <div style="color:var(--muted); font-size:0.72rem; margin-bottom:6px;">仕込み前重量 (kg)</div>
-        <div style="display:flex; align-items:center; gap:6px;">
+        <div style="display:flex; align-items:center; gap:4px;">
           <input type="number" name="raw_weight" inputmode="decimal" step="0.1" min="0"
             value="{{ last_batch.raw_weight if last_batch and last_batch.raw_weight else '' }}"
             placeholder="例: 3.0"
-            style="flex:1; background:transparent; border:none; border-bottom:2px solid #555; color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
+            style="min-width:0; width:100%; background:transparent; border:none; border-bottom:2px solid #555; color:var(--text); font-size:1.4rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
             oninput="calcYield()">
-          <span style="color:var(--muted); font-size:0.9rem;">kg</span>
+          <span style="color:var(--muted); font-size:0.85rem; flex-shrink:0;">kg</span>
         </div>
       </div>
-      <div>
+      <div style="min-width:0;">
         <div style="color:var(--muted); font-size:0.72rem; margin-bottom:6px;">廃棄量 (kg)</div>
-        <div style="display:flex; align-items:center; gap:6px;">
+        <div style="display:flex; align-items:center; gap:4px;">
           <input type="number" name="waste_weight" inputmode="decimal" step="0.01" min="0"
             value="{{ last_batch.waste_weight if last_batch and last_batch.waste_weight else '' }}"
             placeholder="例: 0.2"
-            style="flex:1; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.5rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
+            style="min-width:0; width:100%; background:transparent; border:none; border-bottom:2px solid var(--yellow); color:var(--text); font-size:1.4rem; font-weight:700; outline:none; padding:4px 0; text-align:right;"
             oninput="calcYield()">
-          <span style="color:var(--muted); font-size:0.9rem;">kg</span>
+          <span style="color:var(--muted); font-size:0.85rem; flex-shrink:0;">kg</span>
         </div>
       </div>
     </div>
