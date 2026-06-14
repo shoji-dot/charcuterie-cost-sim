@@ -14,7 +14,7 @@ from app.calculator import get_cost_rate, get_tier_label, convert_to_price_unit
 router = APIRouter(prefix="/batch")
 templates = Jinja2Templates(directory="app/templates")
 
-CATEGORIES = ["肉", "野菜", "調味料", "油脂", "乳製品", "豆・穀物", "その他"]
+CATEGORIES = ["肉", "野菜", "調味料", "油脂", "乳製品", "豆", "穀物", "その他"]
 UNITS = ["kg", "g", "L", "ml", "個", "枚", "本", "束", "缶"]
 
 # 変換可能な単位グループ（同グループ内のみ変換可能）

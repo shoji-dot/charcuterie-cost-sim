@@ -66,11 +66,39 @@
       食材合計: <span id="totalCost" style="color:var(--text); font-weight:700;">¥0</span>
     </div>
 
-    <button type="button" onclick="addRow()"
-      style="width:100%; padding:11px; background:transparent; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.9rem; cursor:pointer;">
-      ＋ 食材を追加
-    </button>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <button type="button" onclick="openMasterModal()"
+        style="padding:11px; background:rgba(233,69,96,0.12); border:1px solid var(--accent); border-radius:10px; color:var(--accent); font-size:0.85rem; cursor:pointer; font-weight:700;">
+        📋 マスターから選択
+      </button>
+      <button type="button" onclick="addRow()"
+        style="padding:11px; background:transparent; border:1px dashed #444; border-radius:10px; color:var(--muted); font-size:0.85rem; cursor:pointer;">
+        ＋ 手入力で追加
+      </button>
+    </div>
   </div>
+
+<!-- 食材マスター選択モーダル -->
+<div id="masterModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.7); overflow-y:auto;">
+  <div style="background:#121929; border-radius:16px 16px 0 0; position:fixed; bottom:0; left:0; right:0; max-height:85vh; display:flex; flex-direction:column;">
+    <div style="padding:16px 16px 8px; border-bottom:1px solid #333; flex-shrink:0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-weight:700; font-size:1rem;">食材を選択</span>
+        <button type="button" onclick="closeMasterModal()" style="background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; padding:0;">✕</button>
+      </div>
+      <input id="masterSearch" type="text" placeholder="食材名で絞り込み…" oninput="filterMaster(this.value)"
+        style="width:100%; background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:9px 10px; font-size:0.9rem; outline:none; box-sizing:border-box;">
+    </div>
+    <div id="masterList" style="overflow-y:auto; padding:12px 16px; flex:1;"></div>
+    <div style="padding:12px 16px; border-top:1px solid #333; flex-shrink:0; display:flex; gap:8px;">
+      <button type="button" onclick="selectAllVisible()" style="flex:1; padding:10px; background:#1e2a44; border:1px solid #444; border-radius:10px; color:var(--muted); font-size:0.82rem; cursor:pointer;">全選択</button>
+      <button type="button" onclick="addSelectedFromMaster()"
+        style="flex:2; padding:10px; background:var(--accent); border:none; border-radius:10px; color:#fff; font-size:0.9rem; font-weight:700; cursor:pointer;">
+        選択した食材を追加 (<span id="selCount">0</span>件)
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- 完成量 -->
   <div class="card">
@@ -243,6 +271,70 @@ function updateTotal() {
 document.querySelectorAll('.ing-row input').forEach(i => i.addEventListener('input', updateTotal));
 document.querySelectorAll('.ing-row [name=ing_name]').forEach(i => i.addEventListener('blur', () => applyMaster(i)));
 updateTotal();
+
+// ── マスター選択モーダル ────────────────────────────────────────
+const MASTER_LIST = Object.entries(MASTERS).map(([name, m]) => ({name, ...m}));
+
+function buildMasterList(filter='') {
+  const lower = filter.toLowerCase();
+  const filtered = MASTER_LIST.filter(m => !lower || m.name.toLowerCase().includes(lower));
+  const groups = {};
+  filtered.forEach(m => {
+    if (!groups[m.category]) groups[m.category] = [];
+    groups[m.category].push(m);
+  });
+  const el = document.getElementById('masterList');
+  el.innerHTML = '';
+  if (filtered.length === 0) {
+    el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;">一致なし</p>';
+    return;
+  }
+  Object.keys(groups).sort().forEach(cat => {
+    const catEl = document.createElement('div');
+    catEl.innerHTML = `<p style="color:var(--muted);font-size:0.72rem;margin:10px 0 6px;letter-spacing:0.08em;">${cat}</p>`;
+    groups[cat].forEach(m => {
+      const row = document.createElement('label');
+      row.style = 'display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;margin-bottom:4px;background:#1a2038;';
+      row.innerHTML = `
+        <input type="checkbox" class="master-chk" data-name="${m.name}" data-price="${m.unit_price}" data-unit="${m.price_unit}" data-cat="${m.category}"
+          style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;" onchange="updateSelCount()">
+        <div style="flex:1;">
+          <div style="font-size:0.9rem;font-weight:600;">${m.name}</div>
+          <div style="color:var(--accent);font-size:0.78rem;">¥${m.unit_price.toLocaleString()} / ${m.price_unit}</div>
+        </div>`;
+      catEl.appendChild(row);
+    });
+    el.appendChild(catEl);
+  });
+  updateSelCount();
+}
+
+function openMasterModal() {
+  document.getElementById('masterSearch').value = '';
+  buildMasterList();
+  document.getElementById('masterModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+function closeMasterModal() {
+  document.getElementById('masterModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function filterMaster(v) { buildMasterList(v); }
+function selectAllVisible() {
+  document.querySelectorAll('#masterList .master-chk').forEach(c => c.checked = true);
+  updateSelCount();
+}
+function updateSelCount() {
+  const n = document.querySelectorAll('#masterList .master-chk:checked').length;
+  document.getElementById('selCount').textContent = n;
+}
+function addSelectedFromMaster() {
+  document.querySelectorAll('#masterList .master-chk:checked').forEach(chk => {
+    addRow(chk.dataset.name, '', chk.dataset.unit, chk.dataset.price, chk.dataset.unit, chk.dataset.cat);
+  });
+  closeMasterModal();
+  updateTotal();
+}
 
 document.querySelectorAll('input[name="customer_tier"]').forEach(r => {
   r.addEventListener('change', () => {

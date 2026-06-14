@@ -104,7 +104,8 @@
         {%- endif -%}
       </div>
     </a>
-    <form method="post" action="/batch/{{ b.id }}/delete" style="margin:0;">
+    <form method="post" action="/batch/{{ b.id }}/delete" style="margin:0;"
+      onsubmit="return confirm('「{{ b.name }}」を削除しますか？')">
       <button type="submit" style="background:none;border:none;color:#555;font-size:1.2rem;cursor:pointer;padding:6px;">✕</button>
     </form>
   </div>

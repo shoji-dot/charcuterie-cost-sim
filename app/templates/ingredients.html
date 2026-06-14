@@ -2,9 +2,16 @@
 {% block content %}
 <h1>食材マスター</h1>
 
+<!-- シードデータ一括登録 -->
+<form method="post" action="/ingredients/seed" style="margin-bottom:10px;">
+  <button type="submit" class="btn btn-ghost" style="width:100%; font-size:0.85rem; padding:12px; border-color:var(--accent); color:var(--accent);">
+    🌱 シャルキュトリー食材を一括登録（サンプル単価）
+  </button>
+</form>
+
 <!-- 追加フォーム -->
 <div class="card">
-  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">食材を登録（同名は上書き）</p>
+  <p style="color:var(--muted); font-size:0.8rem; margin-bottom:12px;">食材を登録（同名は上書き・既存バッチの単価も自動更新）</p>
   <form method="post" action="/ingredients/save">
     <div style="display:grid; grid-template-columns:2fr 1fr 0.8fr; gap:6px; margin-bottom:8px;">
       <input type="text" name="name" required placeholder="食材名"
