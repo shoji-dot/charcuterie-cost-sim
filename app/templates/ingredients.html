@@ -5,7 +5,7 @@
 <!-- シードデータ一括登録 -->
 <form method="post" action="/ingredients/seed" style="margin-bottom:10px;">
   <button type="submit" class="btn btn-ghost" style="width:100%; font-size:0.85rem; padding:12px; border-color:var(--accent); color:var(--accent);">
-    🌱 シャルキュトリー食材を一括登録（サンプル単価）
+    🌱 プリセット食材を読み込む（未登録のみ追加）
   </button>
 </form>
 
@@ -16,13 +16,13 @@
     <button type="button" id="cancelEditBtn" onclick="cancelEdit()" style="display:none; background:none; border:none; color:var(--muted); font-size:0.8rem; cursor:pointer; text-decoration:underline;">キャンセル</button>
   </div>
   <form method="post" action="/ingredients/save" id="ingForm">
-    <div style="display:grid; grid-template-columns:2fr 1fr 0.8fr; gap:6px; margin-bottom:8px;">
+    <div style="display:grid; grid-template-columns:1fr 80px 54px; gap:6px; margin-bottom:8px;">
       <input type="text" name="name" id="fName" required placeholder="食材名"
-        style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 8px; font-size:0.9rem; outline:none;">
+        style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 8px; font-size:0.9rem; outline:none; min-width:0;">
       <input type="number" name="unit_price" id="fPrice" required placeholder="単価" step="1" min="0" inputmode="numeric"
-        style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 6px; font-size:0.9rem; outline:none; text-align:right;">
+        style="background:#1e2a44; border:1px solid #444; border-radius:8px; color:var(--text); padding:10px 4px; font-size:0.9rem; outline:none; text-align:right; min-width:0;">
       <select name="price_unit" id="fUnit"
-        style="background:#1e2a44; border:1px solid var(--accent); border-radius:8px; color:var(--accent); padding:10px 4px; font-size:0.85rem; outline:none; font-weight:700;">
+        style="background:#1e2a44; border:1px solid var(--accent); border-radius:8px; color:var(--accent); padding:10px 2px; font-size:0.8rem; outline:none; font-weight:700; min-width:0; width:100%;">
         {% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
       </select>
     </div>
